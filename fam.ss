@@ -8,6 +8,7 @@
            fam-any-event?
            fam-next-event)
 
+  (require (lib "etc.ss"))
   (require (lib "foreign.ss")) (unsafe!)
 
   (define libfam (ffi-lib "libfam"))
@@ -24,13 +25,15 @@
              FAMExists = 8
              FAMEndExist = 9)))
 
+  (define _Buffer (make-cstruct-type (build-list 4096 (lambda (i) _byte))))
+
   (define-cstruct _FAMConnection ((fd _int)))
   (define-cstruct _FAMRequest ((reqnum _int)))
   (define-cstruct _FAMEvent ((fc _FAMConnection-pointer)
                              (fr _FAMRequest)
-                             (hostname _cvector)
-                             (filename _cvector)
-                             (userData _string)
+                             (hostname _string)
+                             (filename _Buffer)
+                             (userData _string) ;; trick
                              (code _FAMCodes)))
 
   (define-struct fam-connection (conn files))
@@ -51,14 +54,14 @@
   (define %monitor-directory
     (get-ffi-obj "FAMMonitorDirectory" libfam
                  (_fun _FAMConnection-pointer
-                       _string
+                       _file
                        _FAMRequest-pointer
                        _string -> _int)))
 
   (define %monitor-file
     (get-ffi-obj "FAMMonitorFile" libfam
                  (_fun _FAMConnection-pointer
-                       _string
+                       _file
                        _FAMRequest-pointer
                        _string -> _int)))
 
