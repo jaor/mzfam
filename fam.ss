@@ -4,9 +4,10 @@
            fam-suspend
            fam-resume
            fam-cancel
-           fam-monitor-pathname
+           fam-monitor-path
            fam-any-event?
-           fam-next-event)
+           fam-next-event
+           fam-pending-events)
 
   (require (lib "etc.ss"))
   (require (lib "foreign.ss")) (unsafe!)
@@ -67,35 +68,41 @@
                        _FAMRequest-pointer
                        _string -> _int)))
 
-  (define (fam-monitor-pathname fc pathname)
+  (define (fam-monitor-path fc pathname)
     (let* ((pathname (path->string (path->complete-path pathname)))
            (is-file? (file-exists? pathname))
            (is-dir? (and (not is-file?) (directory-exists? pathname))))
-      (when (or is-file? is-dir?)
-        (let ((conn (fam-connection-conn fc))
-              (req (make-FAMRequest 0))
-              (ffun (if is-dir? %monitor-directory %monitor-file)))
-          (when (= 0 (ffun conn pathname req pathname))
-            (set-fam-connection-files! fc
-                                       (cons (cons pathname req)
-                                             (fam-connection-files fc)))
-            req)))))
+      (and (or is-file? is-dir?)
+           (let ((conn (fam-connection-conn fc))
+                 (req (make-FAMRequest 0))
+                 (ffun (if is-dir? %monitor-directory %monitor-file)))
+             (and (= 0 (ffun conn pathname req pathname))
+                  (begin
+                    (set-fam-connection-files! fc
+                                              (cons (cons pathname req)
+                                                    (fam-connection-files fc)))
+                    #t))))))
 
-  (define (%->req obj fc)
-    (cond ((FAMRequest? obj) obj)
-          ((assoc obj (fam-connection-files fc)) => cdr)
+  (define (%path->req fc path)
+    (cond ((assoc path (fam-connection-files fc)) => cdr)
           (else #f)))
+
+  (define (%reqnum->%path fc reqnum)
+    (let loop ((paths (fam-connection-files fc)))
+      (cond ((null? paths) "")
+            ((= (FAMRequest-reqnum (cdar paths)) reqnum) (caar paths))
+            (else (loop (cdr paths))))))
 
   (define-syntax %c+r-ffun
     (syntax-rules ()
       ((%a2fun ffi-name exp-name)
-       (define (exp-name fc obj)
+       (define (exp-name fc file)
          (define ffun
            (get-ffi-obj ffi-name libfam
                         (_fun _FAMConnection-pointer _FAMRequest-pointer -> _int)))
          (let ((conn (fam-connection-conn fc))
-               (req (%->req obj fc)))
-           (when req (ffun conn req)))))))
+               (req (%path->req fc file)))
+           (and req (= 0 (ffun conn req))))))))
 
 
   (%c+r-ffun "FAMSuspendMonitor" fam-suspend)
@@ -118,10 +125,19 @@
     (case-lambda
       ((fc) (fam-next-event fc #f))
       ((fc wait)
-       (when (or wait (fam-any-event? fc))
-         (let-values (((result event) (%next-event (fam-connection-conn fc)
-                                                   (fam-connection-event fc))))
-           (and result
-                (cons (FAMEvent-userData event) (FAMEvent-code event))))))))
+       (and (or wait (fam-any-event? fc))
+            (let-values (((result event) (%next-event (fam-connection-conn fc)
+                                                      (fam-connection-event fc))))
+              (and result
+                   (cons (%reqnum->%path fc (FAMRequest-reqnum (FAMEvent-fr event)))
+                         (FAMEvent-code event))))))))
+
+  (define (fam-pending-events fc)
+    (let loop ((next (fam-next-event fc)) (events '()))
+      (if (not next)
+          (reverse events)
+          (loop (fam-next-event fc) (cons next events)))))
+
+  (when (not libfam) (error "libfam is not available in your platform"))
 
 )
