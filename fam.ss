@@ -36,7 +36,7 @@
                              (userData _string) ;; trick
                              (code _FAMCodes)))
 
-  (define-struct fam-connection (conn files))
+  (define-struct fam-connection (conn files event))
 
   (define (fam-open)
     (define %open-fam
@@ -44,7 +44,9 @@
                    (_fun (conn : (_ptr o _FAMConnection)) ->  (d : _int)
                          -> (values (= 0 d) conn))))
     (let-values (((result conn) (%open-fam)))
-      (and result (make-fam-connection (ptr-ref conn _FAMConnection 0) '()))))
+      (and result (make-fam-connection (ptr-ref conn _FAMConnection 0)
+                                       '()
+                                       (malloc (ctype-sizeof _FAMEvent))))))
 
   (define (fam-close fc)
     (define %close-fam
@@ -108,17 +110,18 @@
 
   (define %next-event
     (get-ffi-obj "FAMNextEvent" libfam
-                 (_fun _FAMConnection-pointer (ev : (_ptr o _FAMEvent))
-                       -> (d : _int) -> (values (= d 1) ev))))
+                 (_fun _FAMConnection-pointer (ev : _pointer)
+                       -> (d : _int) -> (values (= d 1)
+                                                (ptr-ref ev _FAMEvent 0)))))
 
   (define fam-next-event
     (case-lambda
       ((fc) (fam-next-event fc #f))
       ((fc wait)
        (when (or wait (fam-any-event? fc))
-         (let-values (((result eptr) (%next-event (fam-connection-conn fc))))
+         (let-values (((result event) (%next-event (fam-connection-conn fc)
+                                                   (fam-connection-event fc))))
            (and result
-                (let ((event (ptr-ref eptr _FAMEvent 0)))
-                  (cons (FAMEvent-userData event) (FAMEvent-code event)))))))))
+                (cons (FAMEvent-userData event) (FAMEvent-code event))))))))
 
 )
