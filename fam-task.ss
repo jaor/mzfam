@@ -40,17 +40,17 @@
 
   (define fspec-path car)
   (define fspec-proc cadr)
-  (define (fspec-xevs fs)
-    (if (> (length fs) 2) (caddr fs) '()))
+  (define (fspec-evs fs)
+    (if (> (length fs) 2) (caddr fs) 'all-fam-events))
 
   (define (%check-fs fs)
-    (when (< (length fs) 2) (error "Incomplet file-spec" fs))
+    (when (< (length fs) 2) (error "Incomplete file-spec" fs))
     (when (not (string? (fspec-path fs)))
       (error "Pathname expected" (fspec-path fs)))
     (when (not (procedure? (fspec-proc fs)))
       (error "Procedure expected" (fspec-proc fs)))
-    (when (not (list? (fspec-xevs fs)))
-      (error "Event list expected" (fspec-xevs fs))))
+    (when (not (list? (fspec-evs fs)))
+      (error "Event list expected" (fspec-evs fs))))
 
   (define (%process-events events fspecs)
     (let loop ((events events))
@@ -60,7 +60,8 @@
                (type (fam-event-type event))
                (tgt (fam-event-target-path event))
                (fs (assoc mp fspecs)))
-          (when (and fs (not (memq type (fspec-xevs fs))))
+          (when (and fs (or (eq? 'all-fam-events (fspec-evs fs))
+                            (memq type (fspec-evs fs))))
             ((fspec-proc fs) mp tgt type)))
         (loop (cdr events)))))
 
