@@ -55,9 +55,13 @@
   (define (%process-events events fspecs)
     (let loop ((events events))
       (when (not (null? events))
-        (let ((fs (assoc (caar events) fspecs)))
-          (when (and fs (not (memq (cdar events) (fspec-xevs fs))))
-            ((fspec-proc fs) (fspec-path fs) (cdar events))))
+        (let* ((event (car events))
+               (mp (fam-event-monitored-path event))
+               (type (fam-event-type event))
+               (tgt (fam-event-target-path event))
+               (fs (assoc mp fspecs)))
+          (when (and fs (not (memq type (fspec-xevs fs))))
+            ((fspec-proc fs) mp tgt type)))
         (loop (cdr events)))))
 
   (define (%process-msg msg fc fspecs)
@@ -135,7 +139,6 @@
     (channel-put (fam-task-channel ft) (cons 'remove path)))
 
 )
-
 
 
 ;;; fam-task.ss ends here
