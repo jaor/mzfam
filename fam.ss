@@ -7,7 +7,10 @@
            fam-monitor-path
            fam-any-event?
            fam-next-event
-           fam-pending-events)
+           fam-pending-events
+           fam-event-monitored-path
+           fam-event-target-path
+           fam-event-type)
 
   (require (lib "etc.ss"))
   (require (lib "foreign.ss")) (unsafe!)
@@ -26,7 +29,8 @@
              FAMExists = 8
              FAMEndExist = 9)))
 
-  (define _Buffer (make-cstruct-type (build-list 4096 (lambda (i) _byte))))
+  (define *max-path-len* 4096)
+  (define _Buffer (make-cstruct-type (build-list *max-path-len* (lambda (i) _byte))))
 
   (define-cstruct _FAMConnection ((fd _int)))
   (define-cstruct _FAMRequest ((reqnum _int)))
@@ -121,6 +125,10 @@
                        -> (d : _int) -> (values (= d 1)
                                                 (ptr-ref ev _FAMEvent 0)))))
 
+  (define (%bs->path bs)
+    (let ((match (regexp-match #rx#"(?>([^\0]+)\0)" bs)))
+      (if match (path->string (bytes->path (cadr match))) "")))
+
   (define fam-next-event
     (case-lambda
       ((fc) (fam-next-event fc #f))
@@ -129,7 +137,10 @@
             (let-values (((result event) (%next-event (fam-connection-conn fc)
                                                       (fam-connection-event fc))))
               (and result
-                   (cons (%reqnum->%path fc (FAMRequest-reqnum (FAMEvent-fr event)))
+                   (list (%reqnum->%path fc (FAMRequest-reqnum (FAMEvent-fr event)))
+                         (%bs->path
+                          (make-sized-byte-string (FAMEvent-filename event)
+                                                  *max-path-len*))
                          (FAMEvent-code event))))))))
 
   (define (fam-pending-events fc)
@@ -137,6 +148,10 @@
       (if (not next)
           (reverse events)
           (loop (fam-next-event fc) (cons next events)))))
+
+  (define fam-event-monitored-path car)
+  (define fam-event-target-path cadr)
+  (define fam-event-type caddr)
 
   (when (not libfam) (error "libfam is not available in your platform"))
 
