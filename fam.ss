@@ -1,10 +1,13 @@
 (module fam mzscheme
-  (provide fam-open
+
+  (provide fam-available?
+           fam-open
            fam-close
            fam-suspend
            fam-resume
            fam-cancel
            fam-monitor-path
+           fam-monitored-paths
            fam-any-event?
            fam-next-event
            fam-pending-events
@@ -15,14 +18,19 @@
   (require (lib "etc.ss"))
   (require (lib "foreign.ss")) (unsafe!)
 
-  (define (%try-ffi proc . args)
+  (define (%try proc . args)
     (with-handlers ((exn:fail? (lambda (x) #f)))
       (apply proc args)))
 
-  (define libfam (or (%try-ffi ffi-lib "libfam")
-                     (%try-ffi ffi-lib "libgamin")))
+  (define %get-ffi-obj
+    (lambda args
+      (or (apply %try get-ffi-obj args)
+          (lambda x -1))))
 
-  (when (not libfam) (error "Neither libfam nor libgamin is available"))
+  (define libfam (or (%try ffi-lib "libfam")
+                     (%try ffi-lib "libgamin")))
+
+  (define (fam-available?) (if libfam #t #f))
 
   (define _FAMCodes
     (_enum '(FAMNull = 0
@@ -52,9 +60,9 @@
 
   (define (fam-open)
     (define %open-fam
-      (get-ffi-obj "FAMOpen" libfam
-                   (_fun (conn : (_ptr o _FAMConnection)) ->  (d : _int)
-                         -> (values (= 0 d) conn))))
+      (%get-ffi-obj "FAMOpen" libfam
+                    (_fun (conn : (_ptr o _FAMConnection)) ->  (d : _int)
+                          -> (values (= 0 d) conn))))
     (let-values (((result conn) (%open-fam)))
       (and result (make-fam-connection (ptr-ref conn _FAMConnection 0)
                                        '()
@@ -62,37 +70,42 @@
 
   (define (fam-close fc)
     (define %close-fam
-      (get-ffi-obj "FAMClose" libfam (_fun _FAMConnection-pointer -> _int)))
+      (%get-ffi-obj "FAMClose" libfam (_fun _FAMConnection-pointer -> _int)))
     (= 0 (%close-fam (fam-connection-conn fc))))
 
   (define %monitor-directory
-    (get-ffi-obj "FAMMonitorDirectory" libfam
-                 (_fun _FAMConnection-pointer
-                       _file
-                       _FAMRequest-pointer
-                       _string -> _int)))
+    (%get-ffi-obj "FAMMonitorDirectory" libfam
+                  (_fun _FAMConnection-pointer
+                        _file
+                        _FAMRequest-pointer
+                        _string -> _int)))
 
   (define %monitor-file
-    (get-ffi-obj "FAMMonitorFile" libfam
-                 (_fun _FAMConnection-pointer
-                       _file
-                       _FAMRequest-pointer
-                       _string -> _int)))
+    (%get-ffi-obj "FAMMonitorFile" libfam
+                  (_fun _FAMConnection-pointer
+                        _file
+                        _FAMRequest-pointer
+                        _string -> _int)))
 
   (define (fam-monitor-path fc pathname)
-    (let* ((pathname (path->string (path->complete-path pathname)))
-           (is-file? (file-exists? pathname))
-           (is-dir? (and (not is-file?) (directory-exists? pathname))))
-      (and (or is-file? is-dir?)
-           (let ((conn (fam-connection-conn fc))
-                 (req (make-FAMRequest 0))
-                 (ffun (if is-dir? %monitor-directory %monitor-file)))
-             (and (= 0 (ffun conn pathname req pathname))
-                  (begin
-                    (set-fam-connection-files! fc
-                                              (cons (cons pathname req)
-                                                    (fam-connection-files fc)))
-                    #t))))))
+    (let ((pathname (path->string (path->complete-path pathname))))
+      (if (assoc pathname (fam-connection-files fc))
+          #t
+          (let* ((is-file? (file-exists? pathname))
+                 (is-dir? (and (not is-file?) (directory-exists? pathname))))
+            (and (or is-file? is-dir?)
+                 (let ((conn (fam-connection-conn fc))
+                       (req (make-FAMRequest 0))
+                       (ffun (if is-dir? %monitor-directory %monitor-file)))
+                   (and (= 0 (ffun conn pathname req pathname))
+                        (begin
+                          (set-fam-connection-files! fc
+                                                     (cons (cons pathname req)
+                                                           (fam-connection-files fc)))
+                          #t))))))))
+
+  (define (fam-monitored-paths fc)
+    (map car (fam-connection-files fc)))
 
   (define (%path->req fc path)
     (cond ((assoc path (fam-connection-files fc)) => cdr)
@@ -109,9 +122,8 @@
       ((%a2fun ffi-name exp-name)
        (define (exp-name fc file)
          (define ffun
-           (%try-ffi
-            get-ffi-obj ffi-name libfam
-            (_fun _FAMConnection-pointer _FAMRequest-pointer -> _int)))
+           (%get-ffi-obj ffi-name libfam
+                         (_fun _FAMConnection-pointer _FAMRequest-pointer -> _int)))
          (let ((conn (fam-connection-conn fc))
                (req (%path->req fc file)))
            (and ffun req (= 0 (ffun conn req))))))))
@@ -123,15 +135,15 @@
 
   (define (fam-any-event? fc)
     (define %pending
-      (get-ffi-obj "FAMPending" libfam
-                   (_fun _FAMConnection-pointer -> _int)))
+      (%get-ffi-obj "FAMPending" libfam
+                    (_fun _FAMConnection-pointer -> _int)))
     (> (%pending (fam-connection-conn fc)) 0))
 
   (define %next-event
-    (get-ffi-obj "FAMNextEvent" libfam
-                 (_fun _FAMConnection-pointer (ev : _pointer)
-                       -> (d : _int) -> (values (= d 1)
-                                                (ptr-ref ev _FAMEvent 0)))))
+    (%get-ffi-obj "FAMNextEvent" libfam
+                  (_fun _FAMConnection-pointer (ev : _pointer)
+                        -> (d : _int) -> (values (= d 1)
+                                                 (ptr-ref ev _FAMEvent 0)))))
 
   (define (%bs->path bs)
     (let ((match (regexp-match #rx#"(?>([^\0]+)\0)" bs)))
