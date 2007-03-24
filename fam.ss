@@ -15,7 +15,14 @@
   (require (lib "etc.ss"))
   (require (lib "foreign.ss")) (unsafe!)
 
-  (define libfam (ffi-lib "libfam"))
+  (define (%try-ffi proc . args)
+    (with-handlers ((exn:fail? (lambda (x) #f)))
+      (apply proc args)))
+
+  (define libfam (or (%try-ffi ffi-lib "libfam")
+                     (%try-ffi ffi-lib "libgamin")))
+
+  (when (not libfam) (error "Neither libfam nor libgamin is available"))
 
   (define _FAMCodes
     (_enum '(FAMNull = 0
@@ -102,11 +109,12 @@
       ((%a2fun ffi-name exp-name)
        (define (exp-name fc file)
          (define ffun
-           (get-ffi-obj ffi-name libfam
-                        (_fun _FAMConnection-pointer _FAMRequest-pointer -> _int)))
+           (%try-ffi
+            get-ffi-obj ffi-name libfam
+            (_fun _FAMConnection-pointer _FAMRequest-pointer -> _int)))
          (let ((conn (fam-connection-conn fc))
                (req (%path->req fc file)))
-           (and req (= 0 (ffun conn req))))))))
+           (and ffun req (= 0 (ffun conn req))))))))
 
 
   (%c+r-ffun "FAMSuspendMonitor" fam-suspend)
@@ -152,7 +160,5 @@
   (define fam-event-monitored-path car)
   (define fam-event-target-path cadr)
   (define fam-event-type caddr)
-
-  (when (not libfam) (error "libfam is not available in your platform"))
 
 )
