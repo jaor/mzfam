@@ -70,7 +70,6 @@
 
   (define (%process-msg msg fc fspecs)
     (case (car msg)
-      ((exit) (exit))
       ((add)
        (fam-monitor-path (fspec-path (cdr msg)))
        (cons (cdr msg) fspecs))
@@ -95,14 +94,17 @@
          (let ((thunk (lambda ()
                         (for-each (lambda (p) (fam-monitor-path fc p))
                                   (map fspec-path fspecs))
-                        (let loop ()
-                          (sleep step)
-                          (%process-events (fam-pending-events fc) fspecs)
-                          (let loop ((msg (channel-try-get ch)))
-                            (when msg
-                              (set! fspecs (%process-msg msg fc fspecs))
-                              (loop (channel-try-get ch))))
-                          (loop)))))
+                        (call/cc
+                         (lambda (k)
+                           (let loop ()
+                             (sleep step)
+                             (%process-events (fam-pending-events fc) fspecs)
+                             (let loop ((msg (channel-try-get ch)))
+                               (when msg
+                                 (when (eq? (car msg) 'exit) (k 'exit))
+                                 (set! fspecs (%process-msg msg fc fspecs))
+                                 (loop (channel-try-get ch))))
+                             (loop)))))))
            (make-fam-task thunk #f ch))))))
 
   (define (%fam-task-proc proc)
