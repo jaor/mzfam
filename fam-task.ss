@@ -20,7 +20,7 @@
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 ;; 02110-1301, USA.
 
-(module fam-task mzscheme
+(module fam-task "fam-base.ss"
 
   (provide fam-task-create
            fam-task-start
@@ -31,9 +31,12 @@
            fam-task-add-path
            fam-task-remove-path
            fam-task-suspend-monitoring
-           fam-task-resume-monitoring)
+           fam-task-resume-monitoring
+           fam-event-path
+           fam-event-type)
 
   (require "fam.ss"
+           "mz-fam.ss"
            (lib "list.ss"))
 
   (define-struct fam-task (thunk thread channel))
@@ -49,20 +52,20 @@
       (error "Pathname expected" (fspec-path fs)))
     (when (not (procedure? (fspec-proc fs)))
       (error "Procedure expected" (fspec-proc fs)))
-    (when (not (list? (fspec-evs fs)))
+    (when (and (> 2 (length fs)) (not (list? (fspec-evs fs))))
       (error "Event list expected" (fspec-evs fs))))
 
   (define (%process-events events fspecs)
     (let loop ((events events))
       (when (not (null? events))
         (let* ((event (car events))
-               (mp (fam-event-monitored-path event))
                (type (fam-event-type event))
-               (tgt (fam-event-target-path event))
+               (tgt (fam-event-path event))
+               (mp (fam-event-monitored-path event))
                (fs (assoc mp fspecs)))
           (when (and fs (or (eq? 'all-fam-events (fspec-evs fs))
                             (memq type (fspec-evs fs))))
-            ((fspec-proc fs) mp tgt type)))
+            ((fspec-proc fs) tgt type)))
         (loop (cdr events)))))
 
   (define (%process-msg msg fc fspecs)
@@ -72,10 +75,10 @@
        (fam-monitor-path (fspec-path (cdr msg)))
        (cons (cdr msg) fspecs))
       ((remove)
-       (fam-cancel (cdr msg))
+       (fam-cancel-path-monitoring (cdr msg))
        (remove (cdr msg) fspecs (lambda (it fs) (equal? it (fspec-path fs)))))
-      ((suspend) (fam-suspend (cdr msg)) fspecs)
-      ((resume) (fam-resume (cdr msg)) fspecs)
+      ((suspend) (fam-suspend-path-monitoring (cdr msg)) fspecs)
+      ((resume) (fam-resume-path-monitoring (cdr msg)) fspecs)
       (else fspecs)))
 
   (define fam-task-create
@@ -87,15 +90,14 @@
                             (cons (path->string (path->complete-path (car fs)))
                                   (cdr fs)))
                           fspecs))
-             (fc (fam-open))
+             (fc (or (make-fam) (make-mz-fam)))
              (ch (make-channel)))
          (let ((thunk (lambda ()
                         (for-each (lambda (p) (fam-monitor-path fc p))
                                   (map fspec-path fspecs))
                         (let loop ()
                           (sleep step)
-                          (%process-events (fam-pending-events fc)
-                                           fspecs)
+                          (%process-events (fam-pending-events fc) fspecs)
                           (let loop ((msg (channel-try-get ch)))
                             (when msg
                               (set! fspecs (%process-msg msg fc fspecs))

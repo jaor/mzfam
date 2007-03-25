@@ -1,19 +1,8 @@
-(module fam mzscheme
+(module fam "fam-base.ss"
 
   (provide fam-available?
-           fam-open
-           fam-close
-           fam-suspend
-           fam-resume
-           fam-cancel
-           fam-monitor-path
-           fam-monitored-paths
-           fam-any-event?
-           fam-next-event
-           fam-pending-events
-           fam-event-monitored-path
-           fam-event-target-path
-           fam-event-type)
+           make-fam
+           fam-connection-conn)
 
   (require (lib "etc.ss"))
   (require (lib "foreign.ss")) (unsafe!)
@@ -45,18 +34,20 @@
              FAMEndExist = 9)))
 
   (define *max-path-len* 4096)
-  (define _Buffer (make-cstruct-type (build-list *max-path-len* (lambda (i) _byte))))
+  (define _Buffer
+    (make-cstruct-type (build-list *max-path-len* (lambda (i) _byte))))
 
-  (define-cstruct _FAMConnection ((fd _int)))
+  (define-cstruct _FAMConnection ((fd _int) (extra _pointer)))
   (define-cstruct _FAMRequest ((reqnum _int)))
   (define-cstruct _FAMEvent ((fc _FAMConnection-pointer)
                              (fr _FAMRequest)
                              (hostname _string)
                              (filename _Buffer)
-                             (userData _string) ;; trick
+                             (userData _file) ;; trick
                              (code _FAMCodes)))
 
-  (define-struct fam-connection (conn files event))
+  (defclass <fam-connection> () conn files event
+    :autoaccessors #t :autoinitargs #t)
 
   (define (fam-open)
     (define %open-fam
@@ -64,9 +55,14 @@
                     (_fun (conn : (_ptr o _FAMConnection)) ->  (d : _int)
                           -> (values (= 0 d) conn))))
     (let-values (((result conn) (%open-fam)))
-      (and result (make-fam-connection (ptr-ref conn _FAMConnection 0)
-                                       '()
-                                       (malloc (ctype-sizeof _FAMEvent))))))
+      (and result (ptr-ref conn _FAMConnection 0))))
+
+  (define (make-fam)
+    (let ((conn (and (fam-available?) (fam-open))))
+      (and conn
+           (make <fam-connection> :conn conn
+                                  :files '()
+                                  :event (malloc (ctype-sizeof _FAMEvent))))))
 
   (define (fam-close fc)
     (define %close-fam
@@ -87,7 +83,7 @@
                         _FAMRequest-pointer
                         _string -> _int)))
 
-  (define (fam-monitor-path fc pathname)
+  (defmethod (fam-monitor-path (fc <fam-connection>) pathname)
     (let ((pathname (path->string (path->complete-path pathname))))
       (if (assoc pathname (fam-connection-files fc))
           #t
@@ -104,7 +100,7 @@
                                                            (fam-connection-files fc)))
                           #t))))))))
 
-  (define (fam-monitored-paths fc)
+  (defmethod (fam-monitored-paths (fc <fam-connection>))
     (map car (fam-connection-files fc)))
 
   (define (%path->req fc path)
@@ -120,7 +116,7 @@
   (define-syntax %c+r-ffun
     (syntax-rules ()
       ((%a2fun ffi-name exp-name)
-       (define (exp-name fc file)
+       (defmethod (exp-name (fc <fam-connection>) file)
          (define ffun
            (%get-ffi-obj ffi-name libfam
                          (_fun _FAMConnection-pointer _FAMRequest-pointer -> _int)))
@@ -129,15 +125,16 @@
            (and ffun req (= 0 (ffun conn req))))))))
 
 
-  (%c+r-ffun "FAMSuspendMonitor" fam-suspend)
-  (%c+r-ffun "FAMResumeMonitor" fam-resume)
-  (%c+r-ffun "FAMCancelMonitor" fam-cancel)
+  (%c+r-ffun "FAMSuspendMonitor" fam-suspend-path-monitoring)
+  (%c+r-ffun "FAMResumeMonitor" fam-resume-path-monitoring)
+  (%c+r-ffun "FAMCancelMonitor" fam-cancel-path-monitoring)
 
-  (define (fam-any-event? fc)
-    (define %pending
-      (%get-ffi-obj "FAMPending" libfam
-                    (_fun _FAMConnection-pointer -> _int)))
-    (> (%pending (fam-connection-conn fc)) 0))
+  (define %pending
+    (%get-ffi-obj "FAMPending" libfam (_fun _FAMConnection-pointer -> _int)))
+
+  (defmethod (fam-any-event? (fc <fam-connection>))
+    (let ((cn (fam-connection-conn fc)))
+      (> (%pending cn) 0)))
 
   (define %next-event
     (%get-ffi-obj "FAMNextEvent" libfam
@@ -149,28 +146,20 @@
     (let ((match (regexp-match #rx#"(?>([^\0]+)\0)" bs)))
       (if match (path->string (bytes->path (cadr match))) "")))
 
-  (define fam-next-event
-    (case-lambda
-      ((fc) (fam-next-event fc #f))
-      ((fc wait)
-       (and (or wait (fam-any-event? fc))
-            (let-values (((result event) (%next-event (fam-connection-conn fc)
-                                                      (fam-connection-event fc))))
-              (and result
-                   (list (%reqnum->%path fc (FAMRequest-reqnum (FAMEvent-fr event)))
-                         (%bs->path
-                          (make-sized-byte-string (FAMEvent-filename event)
-                                                  *max-path-len*))
-                         (FAMEvent-code event))))))))
+  (defmethod (fam-next-event (fc <fam-connection>) &optional (wait #f))
+    (and (or wait (fam-any-event? fc))
+         (let-values (((result event) (%next-event (fam-connection-conn fc)
+                                                   (fam-connection-event fc))))
+           (and result
+                (make <fam-event>
+                 :monitored-path (path->string (FAMEvent-userData event))
+                 :path (%bs->path (make-sized-byte-string (FAMEvent-filename event)
+                                                          *max-path-len*))
+                 :type (FAMEvent-code event))))))
 
-  (define (fam-pending-events fc)
+  (defmethod (fam-pending-events (fc <fam-connection>))
     (let loop ((next (fam-next-event fc)) (events '()))
       (if (not next)
           (reverse events)
           (loop (fam-next-event fc) (cons next events)))))
-
-  (define fam-event-monitored-path car)
-  (define fam-event-target-path cadr)
-  (define fam-event-type caddr)
-
 )
