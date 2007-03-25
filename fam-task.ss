@@ -101,7 +101,7 @@
                              (%process-events (fam-pending-events fc) fspecs)
                              (let loop ((msg (channel-try-get ch)))
                                (when msg
-                                 (when (eq? (car msg) 'exit) (k 'exit))
+                                 (when (eq? msg 'exit) (k 'exit))
                                  (set! fspecs (%process-msg msg fc fspecs))
                                  (loop (channel-try-get ch))))
                              (loop)))))))
@@ -113,9 +113,12 @@
            (proc (fam-task-thread ft)))))
 
   (define fam-task-running? (%fam-task-proc thread-running?))
-  (define fam-task-dead? (%fam-task-proc thread-dead?))
   (define fam-task-suspend (%fam-task-proc thread-suspend))
   (define fam-task-resume (%fam-task-proc thread-resume))
+
+  (define (fam-task-dead? ft)
+    (or (not (fam-task-thread ft))
+        ((%fam-task-proc thread-dead?) ft)))
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
@@ -124,7 +127,9 @@
            (thread-running? (fam-task-thread ft)))))
 
   (define (fam-task-stop ft)
-    (channel-put (fam-task-channel ft) '(exit)))
+    (when (not (fam-task-dead? ft))
+      (channel-put (fam-task-channel ft) 'exit)
+      (set-fam-task-thread! ft #f)))
 
   (define (fam-task-join ft)
     (if (not (fam-task-running? ft))
