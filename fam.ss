@@ -88,11 +88,12 @@
       (if (assoc pathname (fam-connection-files fc))
           #t
           (let* ((is-file? (file-exists? pathname))
-                 (is-dir? (and (not is-file?) (directory-exists? pathname))))
+                 (is-dir? (and (not is-file?) (directory-exists? pathname)))
+                 (is-file? (if (or is-file? is-dir?) is-file? (path-only pathname))))
             (and (or is-file? is-dir?)
                  (let ((conn (fam-connection-conn fc))
                        (req (make-FAMRequest 0))
-                       (ffun (if is-dir? %monitor-directory %monitor-file)))
+                       (ffun (if is-file? %monitor-file %monitor-directory)))
                    (and (= 0 (ffun conn pathname req pathname))
                         (begin
                           (set-fam-connection-files! fc
