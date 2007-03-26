@@ -43,7 +43,7 @@
                              (fr _FAMRequest)
                              (hostname _string)
                              (filename _Buffer)
-                             (userData _file) ;; trick
+                             (userData _string)
                              (code _FAMCodes)))
 
   (defclass <fam-connection> () conn files event
@@ -152,7 +152,7 @@
                                                    (fam-connection-event fc))))
            (and result
                 (make <fam-event>
-                 :monitored-path (path->string (FAMEvent-userData event))
+                 :monitored-path (FAMEvent-userData event)
                  :path (%bs->path (make-sized-byte-string (FAMEvent-filename event)
                                                           *max-path-len*))
                  :type (FAMEvent-code event))))))

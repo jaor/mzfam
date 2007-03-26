@@ -32,16 +32,18 @@
            fam-task-remove-path
            fam-task-suspend-monitoring
            fam-task-resume-monitoring
+           fam-task-monitored-paths
            fam-event-path
            fam-event-type)
 
   (require "fam.ss"
            "mz-fam.ss"
-           (lib "list.ss"))
+           (lib "list.ss")
+           (lib "async-channel.ss"))
 
-  (define-struct fam-task (thunk thread channel))
+  (define-struct fam-task (thread channel fc fspecs period))
 
-  (define fspec-path car)
+  (define (fspec-path fs) (path->string (path->complete-path (car fs))))
   (define fspec-proc cadr)
   (define (fspec-evs fs)
     (if (> (length fs) 2) (caddr fs) 'all-fam-events))
@@ -71,41 +73,43 @@
   (define (%process-msg msg fc fspecs)
     (case (car msg)
       ((add)
-       (fam-monitor-path (fspec-path (cdr msg)))
+       (fam-monitor-path fc (fspec-path (cdr msg)))
        (cons (cdr msg) fspecs))
       ((remove)
-       (fam-cancel-path-monitoring (cdr msg))
        (remove (cdr msg) fspecs (lambda (it fs) (equal? it (fspec-path fs)))))
-      ((suspend) (fam-suspend-path-monitoring (cdr msg)) fspecs)
-      ((resume) (fam-resume-path-monitoring (cdr msg)) fspecs)
+      ((suspend) (fam-suspend-path-monitoring fc (cdr msg)) fspecs)
+      ((resume) (fam-resume-path-monitoring fc (cdr msg)) fspecs)
       (else fspecs)))
+
+  (define (%monitor ft)
+    (lambda ()
+      (call/cc
+       (lambda (k)
+         (let loop ()
+           (sleep (fam-task-period ft))
+           (%process-events (fam-pending-events (fam-task-fc ft))
+                            (fam-task-fspecs ft))
+           (let loop ((msg (async-channel-try-get (fam-task-channel ft))))
+             (when msg
+               (when (eq? msg 'exit)
+                 (set-fam-task-thread! ft #f)
+                 (k 'exit))
+               (set-fam-task-fspecs! ft (%process-msg msg
+                                                      (fam-task-fc ft)
+                                                      (fam-task-fspecs ft)))
+               (loop (async-channel-try-get (fam-task-channel ft)))))
+           (loop))))))
 
   (define fam-task-create
     (case-lambda
-      ((fspecs) (fam-task-create fspecs 0.01))
-      ((fspecs step)
-       (for-each %check-fs fspecs)
-       (let ((fspecs (map (lambda (fs)
-                            (cons (path->string (path->complete-path (car fs)))
-                                  (cdr fs)))
-                          fspecs))
-             (fc (or (make-fam) (make-mz-fam)))
-             (ch (make-channel)))
-         (let ((thunk (lambda ()
-                        (for-each (lambda (p) (fam-monitor-path fc p))
-                                  (map fspec-path fspecs))
-                        (call/cc
-                         (lambda (k)
-                           (let loop ()
-                             (sleep step)
-                             (%process-events (fam-pending-events fc) fspecs)
-                             (let loop ((msg (channel-try-get ch)))
-                               (when msg
-                                 (when (eq? msg 'exit) (k 'exit))
-                                 (set! fspecs (%process-msg msg fc fspecs))
-                                 (loop (channel-try-get ch))))
-                             (loop)))))))
-           (make-fam-task thunk #f ch))))))
+      (() (fam-task-create 0.01))
+      ((period)
+       (let ((fc (or (make-fam) (make-mz-fam))))
+         (and fc
+              (make-fam-task #f (make-async-channel) fc '() period))))))
+
+  (define (fam-task-monitored-paths ft)
+    (map fspec-path (fam-task-fspecs ft)))
 
   (define (%fam-task-proc proc)
     (lambda (ft)
@@ -123,30 +127,34 @@
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
          (begin
-           (set-fam-task-thread! ft (thread (fam-task-thunk ft)))
+           (set-fam-task-thread! ft (thread (%monitor ft)))
            (thread-running? (fam-task-thread ft)))))
+
+  (define (%send-msg ft msg)
+    (async-channel-put (fam-task-channel ft) msg))
 
   (define (fam-task-stop ft)
     (when (not (fam-task-dead? ft))
-      (channel-put (fam-task-channel ft) 'exit)
+      (%send-msg ft 'exit)
       (set-fam-task-thread! ft #f)))
 
   (define (fam-task-join ft)
-    (if (not (fam-task-running? ft))
-        (call-in-nested-thread (fam-task-thunk ft))))
+    (if (not (fam-task-thread ft))
+        (call-in-nested-thread (%monitor ft))
+        (thread-wait (fam-task-thread ft))))
 
   (define (fam-task-suspend-monitoring ft path)
-    (channel-put (fam-task-channel ft) (cons 'suspend path)))
+    (%send-msg ft (cons 'suspend path)))
 
   (define (fam-task-resume-monitoring ft path)
-    (channel-put (fam-task-channel ft) (cons 'resume path)))
+    (%send-msg ft (cons 'resume path)))
 
-  (define (fam-task-add-path ft fspec)
+  (define (fam-task-add-path ft . fspec)
     (%check-fs fspec)
-    (channel-put (fam-task-channel ft) (cons 'add fspec)))
+    (%send-msg ft (cons 'add fspec)))
 
   (define (fam-task-remove-path ft path)
-    (channel-put (fam-task-channel ft) (cons 'remove path)))
+    (%send-msg ft (cons 'remove path)))
 
 )
 
