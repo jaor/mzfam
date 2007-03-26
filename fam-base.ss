@@ -34,6 +34,7 @@
            fam-any-event?
            fam-next-event
            fam-pending-events
+           fam-release
 
            make-fam-event
            fam-event-path
@@ -41,6 +42,7 @@
            fam-event-type
            <fam-event>)
 
+  (defgeneric (fam-release fc))
   (defgeneric (fam-monitor-path fc path))
   (defgeneric (fam-monitored-paths fc))
   (defgeneric (fam-suspend-path-monitoring fc path))

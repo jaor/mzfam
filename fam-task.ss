@@ -23,7 +23,6 @@
 (module fam-task "fam-base.ss"
 
   (provide fam-task-create
-           fam-task-start
            fam-task-join
            fam-task-suspend
            fam-task-resume
@@ -93,6 +92,7 @@
              (when msg
                (when (eq? msg 'exit)
                  (set-fam-task-thread! ft #f)
+                 (fam-release (fam-task-fc ft))
                  (k 'exit))
                (set-fam-task-fspecs! ft (%process-msg msg
                                                       (fam-task-fc ft)
@@ -105,8 +105,12 @@
       (() (fam-task-create 0.01))
       ((period)
        (let ((fc (or (make-fam) (make-mz-fam))))
-         (and fc
-              (make-fam-task #f (make-async-channel) fc '() period))))))
+         (let ((ft (and fc
+                        (make-fam-task #f (make-async-channel) fc '() period))))
+           (and ft
+                (begin
+                  (set-fam-task-thread! ft (thread (%monitor ft)))
+                  ft)))))))
 
   (define (fam-task-monitored-paths ft)
     (map fspec-path (fam-task-fspecs ft)))
@@ -123,12 +127,6 @@
   (define (fam-task-dead? ft)
     (or (not (fam-task-thread ft))
         ((%fam-task-proc thread-dead?) ft)))
-
-  (define (fam-task-start ft)
-    (and (not (fam-task-thread ft))
-         (begin
-           (set-fam-task-thread! ft (thread (%monitor ft)))
-           (thread-running? (fam-task-thread ft)))))
 
   (define (%send-msg ft msg)
     (async-channel-put (fam-task-channel ft) msg))

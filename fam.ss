@@ -1,8 +1,7 @@
 (module fam "fam-base.ss"
 
   (provide fam-available?
-           make-fam
-           fam-connection-conn)
+           make-fam)
 
   (require (lib "etc.ss")
            (lib "file.ss"))
@@ -65,7 +64,7 @@
                                   :files '()
                                   :event (malloc (ctype-sizeof _FAMEvent))))))
 
-  (define (fam-close fc)
+  (defmethod (fam-release (fc <fam-connection>))
     (define %close-fam
       (%get-ffi-obj "FAMClose" libfam (_fun _FAMConnection-pointer -> _int)))
     (= 0 (%close-fam (fam-connection-conn fc))))
