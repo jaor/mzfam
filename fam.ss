@@ -89,7 +89,8 @@
           #t
           (let* ((is-file? (file-exists? pathname))
                  (is-dir? (and (not is-file?) (directory-exists? pathname)))
-                 (is-file? (if (or is-file? is-dir?) is-file? (path-only pathname))))
+                 (is-file? (if (or is-file? is-dir?) is-file? (path-only pathname)))
+                 (is-dir? (not is-file?)))
             (and (or is-file? is-dir?)
                  (let ((conn (fam-connection-conn fc))
                        (req (make-FAMRequest 0))
