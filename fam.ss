@@ -4,7 +4,8 @@
            make-fam
            fam-connection-conn)
 
-  (require (lib "etc.ss"))
+  (require (lib "etc.ss")
+           (lib "file.ss"))
   (require (lib "foreign.ss")) (unsafe!)
 
   (define (%try proc . args)
