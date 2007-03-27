@@ -23,6 +23,7 @@
 (module fam-task "fam-base.ss"
 
   (provide fam-task-create
+           fam-task-start
            fam-task-join
            fam-task-suspend
            fam-task-resume
@@ -80,8 +81,15 @@
       ((resume) (fam-resume-path-monitoring fc (cdr msg)) fspecs)
       (else fspecs)))
 
+  (define (%close ft)
+    (set-fam-task-thread! ft #f)
+    (fam-release (fam-task-fc ft))
+    (set-fam-task-fc! ft #f))
+
   (define (%monitor ft)
     (lambda ()
+      (for-each (lambda (fspec) (fam-monitor-path (fam-task-fc ft) (fspec-path fspec)))
+                (fam-task-fspecs ft))
       (call/cc
        (lambda (k)
          (let loop ()
@@ -91,8 +99,7 @@
            (let loop ((msg (async-channel-try-get (fam-task-channel ft))))
              (when msg
                (when (eq? msg 'exit)
-                 (set-fam-task-thread! ft #f)
-                 (fam-release (fam-task-fc ft))
+                 (%close ft)
                  (k 'exit))
                (set-fam-task-fspecs! ft (%process-msg msg
                                                       (fam-task-fc ft)
@@ -104,13 +111,18 @@
     (case-lambda
       (() (fam-task-create 0.01))
       ((period)
-       (let ((fc (or (make-fam) (make-mz-fam))))
-         (let ((ft (and fc
-                        (make-fam-task #f (make-async-channel) fc '() period))))
-           (and ft
-                (begin
-                  (set-fam-task-thread! ft (thread (%monitor ft)))
-                  ft)))))))
+       (let ((ft (make-fam-task #f (make-async-channel) #t '() period)))
+         (and (fam-task-start ft)
+              ft)))))
+
+  (define (fam-task-start ft)
+    (and (not (fam-task-thread ft))
+         (let ((fc (or (make-fam)
+                       (make-mz-fam))))
+           (and fc
+                (begin (set-fam-task-fc! ft fc)
+                       (set-fam-task-thread! ft (thread (%monitor ft)))
+                       #t)))))
 
   (define (fam-task-monitored-paths ft)
     (map fspec-path (fam-task-fspecs ft)))
@@ -149,7 +161,9 @@
 
   (define (fam-task-add-path ft . fspec)
     (%check-fs fspec)
-    (%send-msg ft (cons 'add fspec)))
+    (if (not (fam-task-thread ft))
+        (set-fam-task-fspecs! ft (cons fspec (fam-task-fspecs ft)))
+        (%send-msg ft (cons 'add fspec))))
 
   (define (fam-task-remove-path ft path)
     (%send-msg ft (cons 'remove path)))
