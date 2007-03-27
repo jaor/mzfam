@@ -83,13 +83,14 @@
            (paths (map monitored-file-path children)))
       (when (directory-exists? path)
         (parameterize ((current-directory path))
-          (let ((nc (fold-files (lambda (fn type acc)
-                                  (let ((fn (path->string fn))
-                                        (acc (if (member fn paths)
-                                                 acc
-                                                 (cons (%path->mf fn) acc))))
-                                    (if (eq? type 'dir) (values acc #f) acc)))
-                                '())))
+          (let ((nc (fold-files
+                     (lambda (fn type acc)
+                       (let* ((fn (path->string (path->complete-path fn path)))
+                              (acc (if (member fn paths)
+                                       acc
+                                       (cons (%path->mf fn) acc))))
+                         (if (eq? type 'dir) (values acc #f) acc)))
+                     '())))
             (set-monitored-folder-children! mf (append nc children)))))))
 
   (defmethod (%pending-events (mf <monitored-folder>))
