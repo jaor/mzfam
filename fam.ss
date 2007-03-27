@@ -3,7 +3,8 @@
   (provide fam-available?
            make-fam)
 
-  (require (lib "etc.ss")
+  (require "fam-utils.ss"
+           (lib "etc.ss")
            (lib "file.ss"))
   (require (lib "foreign.ss")) (unsafe!)
 
@@ -87,20 +88,16 @@
     (let ((pathname (path->string (path->complete-path pathname))))
       (if (assoc pathname (fam-connection-files fc))
           #t
-          (let* ((is-file? (file-exists? pathname))
-                 (is-dir? (and (not is-file?) (directory-exists? pathname)))
-                 (is-file? (if (or is-file? is-dir?) is-file? (path-only pathname)))
-                 (is-dir? (not is-file?)))
-            (and (or is-file? is-dir?)
-                 (let ((conn (fam-connection-conn fc))
-                       (req (make-FAMRequest 0))
-                       (ffun (if is-file? %monitor-file %monitor-directory)))
-                   (and (= 0 (ffun conn pathname req pathname))
-                        (begin
-                          (set-fam-connection-files! fc
-                                                     (cons (cons pathname req)
-                                                           (fam-connection-files fc)))
-                          #t))))))))
+          (let* ((is-file? (is-file-path? pathname)))
+            (let ((conn (fam-connection-conn fc))
+                  (req (make-FAMRequest 0))
+                  (ffun (if is-file? %monitor-file %monitor-directory)))
+              (and (= 0 (ffun conn pathname req pathname))
+                   (begin
+                     (set-fam-connection-files! fc
+                                                (cons (cons pathname req)
+                                                      (fam-connection-files fc)))
+                     #t)))))))
 
   (defmethod (fam-monitored-paths (fc <fam-connection>))
     (map car (fam-connection-files fc)))
