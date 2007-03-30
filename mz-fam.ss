@@ -44,7 +44,7 @@
   (defmethod (%next-event (mf <monitored-file>))
     (and (monitored-file-enabled? mf)
          (let* ((path (monitored-file-path mf))
-                (fx? (file-exists? path))
+                (fx? (or (file-exists? path) (directory-exists? path)))
                 (mt (if fx? (file-or-directory-modify-seconds path) 0))
                 (omt (monitored-file-mod-time mf))
                 (lev (monitored-file-last-event mf))
@@ -58,7 +58,7 @@
                            (else 'FAMDeleted))
                          (case lev
                            ((FAMNew) 'FAMExists)
-                           ((FAMExists) 'FAMEndExist)
+                           ((FAMAdded) 'FAMCreated)
                            (else (cond ((= 0 omt) 'FAMCreated)
                                        ((= mt omt) 'FAMNull)
                                        (else 'FAMChanged)))))))
@@ -79,7 +79,7 @@
     (let loop ((event (%next-event mf)) (events '()))
       (if (not event) (reverse events) (loop (%next-event mf) (cons event events)))))
 
-  (define (%refresh-children! mf)
+  (define (%refresh-children! mf &optional (init #f))
     (let* ((path (monitored-file-path mf))
            (children (monitored-folder-children mf))
            (paths (map monitored-file-path children)))
@@ -88,18 +88,39 @@
           (let ((nc (fold-files
                      (lambda (fn type acc)
                        (let* ((fn (path->string (path->complete-path fn path)))
+                              (mt (file-or-directory-modify-seconds fn))
                               (acc (if (member fn paths)
                                        acc
-                                       (cons (%path->mf fn) acc))))
+                                       (cons (make <monitored-file>
+                                              :path fn
+                                              :mod-time mt
+                                              :last-event (if init
+                                                              'FAMNew
+                                                              'FAMAdded))
+                                             acc))))
                          (if (eq? type 'dir) (values acc #f) acc)))
                      '())))
             (set-monitored-folder-children! mf (append nc children)))))))
 
+  (defaftermethod (initialize (mf <monitored-folder>) initargs)
+    (%refresh-children! mf #t))
+
   (defmethod (%pending-events (mf <monitored-folder>))
     (if (monitored-file-enabled? mf)
-        (let ((events (call-next-method)))
+        (begin
           (%refresh-children! mf)
-          (append events (mappend! %pending-events (monitored-folder-children mf))))
+          (let ((nevents (mappend! %pending-events
+                                   (monitored-folder-children mf)))
+                (mfolder (monitored-file-path mf)))
+            (for-each (lambda (event) (slot-set! event 'monitored-path mfolder)) nevents)
+            (if (eq? 'FAMNew (monitored-file-last-event mf))
+                (let ((end (make <mz-fam-event> :path mfolder
+                                                :monitored-path mfolder
+                                                :type 'FAMEndExists
+                                                :time (current-seconds))))
+                  (set-monitored-file-last-event! mf 'FAMNull)
+                  (append nevents (list end)))
+                nevents)))
         '()))
 
   (defmethod (%pending-events (fc <mz-fam>))
@@ -161,8 +182,8 @@
       (set-mz-fam-events! fc '())
       events))
 
+  (defaftermethod (initialize (fc <mz-fam>) initargs)
+    (set-mz-fam-events! fc (%pending-events fc)))
 )
-
-
 
 ;;; mz-fam.ss ends here
