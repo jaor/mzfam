@@ -34,12 +34,18 @@
            fam-task-resume-monitoring
            fam-task-monitored-paths
            fam-event-path
-           fam-event-type)
+           fam-event-type
+           fam-event-monitored-path
+
+           use-native-fam?)
 
   (require "fam.ss"
            "mz-fam.ss"
            (lib "list.ss")
            (lib "async-channel.ss"))
+
+  (define use-native-fam? (make-parameter (not (fam-available?))
+                                          (lambda (v) (or (not (fam-available?)) v))))
 
   (define-struct fam-task (thread channel fc fspecs period))
 
@@ -62,12 +68,11 @@
       (when (not (null? events))
         (let* ((event (car events))
                (type (fam-event-type event))
-               (tgt (fam-event-path event))
                (mp (fam-event-monitored-path event))
                (fs (assoc mp fspecs)))
           (when (and fs (or (eq? 'all-fam-events (fspec-evs fs))
                             (memq type (fspec-evs fs))))
-            ((fspec-proc fs) tgt type)))
+            ((fspec-proc fs) event)))
         (loop (cdr events)))))
 
   (define (%process-msg msg fc fspecs)
@@ -117,7 +122,7 @@
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
-         (let ((fc (or (make-fam)
+         (let ((fc (or (and (not (use-native-fam?)) (make-fam))
                        (make-mz-fam))))
            (and fc
                 (begin (set-fam-task-fc! ft fc)

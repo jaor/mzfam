@@ -42,9 +42,9 @@
   (define-cstruct _FAMRequest ((reqnum _int)))
   (define-cstruct _FAMEvent ((fc _FAMConnection-pointer)
                              (fr _FAMRequest)
-                             (hostname _string)
+                             (hostname _pointer)
                              (filename _Buffer)
-                             (userData _string)
+                             (userData _pointer)
                              (code _FAMCodes)))
 
   (defclass <fam-connection> () conn files event
@@ -106,10 +106,12 @@
     (cond ((assoc path (fam-connection-files fc)) => cdr)
           (else #f)))
 
-  (define (%reqnum->%path fc reqnum)
+  (define (%req->%path fc req)
     (let loop ((paths (fam-connection-files fc)))
       (cond ((null? paths) "")
-            ((= (FAMRequest-reqnum (cdar paths)) reqnum) (caar paths))
+            ((= (FAMRequest-reqnum (cdar paths))
+                (FAMRequest-reqnum req))
+             (caar paths))
             (else (loop (cdr paths))))))
 
   (define-syntax %c+r-ffun
@@ -150,11 +152,13 @@
          (let-values (((result event) (%next-event (fam-connection-conn fc)
                                                    (fam-connection-event fc))))
            (and result
-                (make <fam-event>
-                 :monitored-path (FAMEvent-userData event)
-                 :path (%bs->path (make-sized-byte-string (FAMEvent-filename event)
-                                                          *max-path-len*))
-                 :type (FAMEvent-code event))))))
+                (let* ((mpath (%req->%path fc (FAMEvent-fr event)))
+                       (fby (make-sized-byte-string (FAMEvent-filename event)
+                                                    *max-path-len*))
+                       (file (path->complete-path (%bs->path fby) mpath)))
+                  (make <fam-event> :monitored-path mpath
+                                    :path file
+                                    :type (FAMEvent-code event)))))))
 
   (defmethod (fam-pending-events (fc <fam-connection>))
     (let loop ((next (fam-next-event fc)) (events '()))
