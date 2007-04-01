@@ -60,7 +60,7 @@
   (define (fam-event-type->string type)
     (define descs '((FAMCreated . "Created")
                     (FAMExists . "Found")
-                    (FAMEndExists . "End of found files list")
+                    (FAMEndExist . "End of found files list")
                     (FAMMoved . "Moved")
                     (FAMChanged . "Modified")
                     (FAMDeleted . "Deleted")

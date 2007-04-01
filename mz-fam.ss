@@ -46,7 +46,7 @@
   (defmethod (%next-event (mc <monitored-child>))
     (let ((event (call-next-method)))
       (and event
-           (not (eq? (fam-event-type event) 'FAMEndExists))
+           (not (eq? (fam-event-type event) 'FAMEndExist))
            event)))
 
   (defmethod (%next-event (mf <monitored-file>))
@@ -63,7 +63,7 @@
                            (else 'FAMDeleted))
                          (case lev
                            ((FAMNew) 'FAMExists)
-                           ((FAMExists) 'FAMEndExists)
+                           ((FAMExists) 'FAMEndExist)
                            ((FAMAdded) 'FAMCreated)
                            (else (cond ((= 0 omt) 'FAMCreated)
                                        ((= mt omt) 'FAMNull)
@@ -122,7 +122,7 @@
             (if (eq? (monitored-file-last-event mf) 'FAMNew)
                 (let ((end (make <mz-fam-event> :path mfolder
                                                 :monitored-path mfolder
-                                                :type 'FAMEndExists
+                                                :type 'FAMEndExist
                                                 :time (current-seconds))))
                   (set-monitored-file-last-event! mf 'FAMNull)
                   (append nevents (list end)))
@@ -173,11 +173,16 @@
       (set-mz-fam-events! fc (%pending-events fc)))
     (not (null? (mz-fam-events fc))))
 
-  (defmethod (fam-next-event (fc <mz-fam>) &optional wait)
-    (and (fam-any-event? fc)
-         (let ((evnt (car (mz-fam-events fc))))
-           (set-mz-fam-events! fc (cdr (mz-fam-events fc)))
-           evnt)))
+  (defmethod (fam-next-event (fc <mz-fam>) &optional (wait #f))
+    (let ((event (and (fam-any-event? fc)
+                      (car (mz-fam-events fc)))))
+      (when event
+        (set-mz-fam-events! fc (cdr (mz-fam-events fc))))
+      (if (or event (not wait))
+          event
+          (begin
+            (sleep 0.01)
+            (fam-next-event fc wait)))))
 
   (defmethod (fam-pending-events (fc <mz-fam>))
     (let ((events (append (mz-fam-events fc) (%pending-events fc))))

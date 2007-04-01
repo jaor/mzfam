@@ -88,10 +88,36 @@
       ((resume) (fam-resume-path-monitoring fc (cdr msg)) fspecs)
       (else fspecs)))
 
+  (define (%process-msgs ft k)
+    (let loop ((msg (async-channel-try-get (fam-task-channel ft))))
+      (when msg
+        (when (eq? msg 'exit)
+          (%close ft)
+          (k 'exit))
+        (set-fam-task-fspecs! ft (%process-msg msg
+                                               (fam-task-fc ft)
+                                               (fam-task-fspecs ft)))
+        (loop (async-channel-try-get (fam-task-channel ft))))))
+
   (define (%close ft)
     (set-fam-task-thread! ft #f)
     (fam-release (fam-task-fc ft))
     (set-fam-task-fc! ft #f))
+
+  (define (%periodic-loop ft k)
+    (let loop ()
+      (sleep (fam-task-period ft))
+      (%process-events (fam-pending-events (fam-task-fc ft))
+                       (fam-task-fspecs ft))
+      (%process-msgs ft k)
+      (loop)))
+
+  (define (%blocking-loop ft k)
+    (define (next) (fam-next-event (fam-task-fc ft) #t))
+    (let loop ((event (next)))
+      (%process-events (list event) (fam-task-fspecs ft))
+      (%process-msgs ft k)
+      (loop (next))))
 
   (define (%monitor ft)
     (lambda ()
@@ -99,28 +125,12 @@
                 (fam-task-fspecs ft))
       (call/cc
        (lambda (k)
-         (let loop ()
-           (sleep (fam-task-period ft))
-           (%process-events (fam-pending-events (fam-task-fc ft))
-                            (fam-task-fspecs ft))
-           (let loop ((msg (async-channel-try-get (fam-task-channel ft))))
-             (when msg
-               (when (eq? msg 'exit)
-                 (%close ft)
-                 (k 'exit))
-               (set-fam-task-fspecs! ft (%process-msg msg
-                                                      (fam-task-fc ft)
-                                                      (fam-task-fspecs ft)))
-               (loop (async-channel-try-get (fam-task-channel ft)))))
-           (loop))))))
+         ((if (> (fam-task-period ft) 0) %periodic-loop %blocking-loop) ft k)))))
 
   (define fam-task-create
     (case-lambda
       (() (fam-task-create 0.01))
-      ((period)
-       (let ((ft (make-fam-task #f (make-async-channel) #t '() period)))
-         (and (fam-task-start ft)
-              ft)))))
+      ((period) (make-fam-task #f (make-async-channel) #f '() period))))
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
@@ -156,9 +166,9 @@
       (set-fam-task-thread! ft #f)))
 
   (define (fam-task-join ft)
-    (if (not (fam-task-thread ft))
-        (call-in-nested-thread (%monitor ft))
-        (thread-wait (fam-task-thread ft))))
+    (when (or (fam-task-thread ft)
+              (fam-task-start ft))
+      (thread-wait (fam-task-thread ft))))
 
   (define (fam-task-suspend-monitoring ft path)
     (%send-msg ft (cons 'suspend path)))

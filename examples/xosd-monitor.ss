@@ -6,10 +6,11 @@ exec mzscheme -r "$0" "$@"
 ;;; Code:
 
 (require (lib "fam-task.ss" "fam")
-         (lib "xosd.ss" "ffi"))
+         (lib "xosd.ss" "ffi")
+         (lib "cmdline.ss"))
 
 (define xosd-inst (xosd-create))
-(define fam-inst (fam-task-create))
+
 
 ;; xosd config
 (xosd-set-pos xosd-inst 'middle)
@@ -27,15 +28,25 @@ exec mzscheme -r "$0" "$@"
                      (fam-event-path event)
                      (fam-event-type->string (fam-event-type event))
                      (fam-event-monitored-path event))))
-    (display msg) (newline)
     (xosd-display-string xosd-inst msg)
     (sleep 2)
     (xosd-hide xosd-inst)))
 
-(for-each (lambda (p) (fam-task-add-path fam-inst
-                                    p
-                                    display-event
-                                    '(FAMCreated FAMDeleted FAMChanged)))
-          (vector->list (current-command-line-arguments)))
+(define mfiles '())
+(define period 0.01)
+
+(command-line
+ "xosd-monitor.ss" (current-command-line-arguments)
+ (once-each
+  (("-n" "--native") "Use native implementation" (use-native-fam? #t))
+  (("-b" "--block") "Block on next event" (set! period 0))
+  (("-p" "--period") p "Polling with given period" (set! period p)))
+ (args files
+       (when (null? files) (error "No monitored files/directories"))
+       (set! mfiles files)))
+
+(define fam-inst (fam-task-create period))
+
+(for-each (lambda (path) (fam-task-add-path fam-inst path display-event)) mfiles)
 
 (fam-task-join fam-inst)
