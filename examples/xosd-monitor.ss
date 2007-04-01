@@ -25,7 +25,7 @@ exec mzscheme -r "$0" "$@"
 (define (display-event event)
   (let ((msg (format "~A: ~A (~A)"
                      (fam-event-path event)
-                     (fam-event-type event)
+                     (fam-event-type->string (fam-event-type event))
                      (fam-event-monitored-path event))))
     (display msg) (newline)
     (xosd-display-string xosd-inst msg)

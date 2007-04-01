@@ -37,6 +37,7 @@
            fam-release
 
            make-fam-event
+           fam-event-type->string
            fam-event-path
            fam-event-monitored-path
            fam-event-type
@@ -55,6 +56,19 @@
   (defclass <fam-event> () path type monitored-path :auto #t)
   (defmethod (print-object (fev <fam-event>) esc? port)
     (print-object-with-slots fev esc? port))
+
+  (define (fam-event-type->string type)
+    (define descs '((FAMCreated . "Created")
+                    (FAMExists . "Found")
+                    (FAMEndExists . "End of found files list")
+                    (FAMMoved . "Moved")
+                    (FAMChanged . "Modified")
+                    (FAMDeleted . "Deleted")
+                    (FAMStartExecuting . "Execution started")
+                    (FAMStopExecuting . "Execution stopped")
+                    (FAMAcknowledge . "Acknowledge")))
+    (cond ((assoc type descs) => cdr)
+          (else (format "Unknown type (~A)" type))))
 )
 
 

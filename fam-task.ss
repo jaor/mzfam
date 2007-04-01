@@ -33,9 +33,11 @@
            fam-task-suspend-monitoring
            fam-task-resume-monitoring
            fam-task-monitored-paths
+
            fam-event-path
            fam-event-type
            fam-event-monitored-path
+           fam-event-type->string
 
            use-native-fam?)
 
