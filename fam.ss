@@ -157,7 +157,7 @@
                                                     *max-path-len*))
                        (file (path->complete-path (%bs->path fby) mpath)))
                   (make <fam-event> :monitored-path mpath
-                                    :path file
+                                    :path (path->string file)
                                     :type (FAMEvent-code event)))))))
 
   (defmethod (fam-pending-events (fc <fam-connection>))

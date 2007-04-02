@@ -41,52 +41,57 @@
 
            use-native-fam?)
 
-  (require "fam.ss"
+  (require "fam-utils.ss"
+           "fam.ss"
            "mz-fam.ss"
-           (lib "list.ss")
            (lib "async-channel.ss"))
 
   (define use-native-fam? (make-parameter (not (fam-available?))
                                           (lambda (v) (or (not (fam-available?)) v))))
 
   (define-struct fam-task (thread channel fc fspecs period))
+  (define-struct fspec (proc evs rec))
 
-  (define (fspec-path fs) (path->string (path->complete-path (car fs))))
-  (define fspec-proc cadr)
-  (define (fspec-evs fs)
-    (if (> (length fs) 2) (caddr fs) 'all-fam-events))
+  (define (%make-fspec proc &optional (events 'all-fam-events) (recursive #f))
+    (make-fspec proc events recursive))
 
-  (define (%check-fs fs)
-    (when (< (length fs) 2) (error "Incomplete file-spec" fs))
-    (when (not (string? (fspec-path fs)))
-      (error "Pathname expected" (fspec-path fs)))
-    (when (not (procedure? (fspec-proc fs)))
-      (error "Procedure expected" (fspec-proc fs)))
-    (when (and (> 2 (length fs)) (not (list? (fspec-evs fs))))
-      (error "Event list expected" (fspec-evs fs))))
+  (define (%accepts-type fspec type)
+    (and fspec
+         (let ((evs (fspec-evs fspec)))
+           (or (eq? evs 'all-fam-events)
+               (memq type evs)))))
 
-  (define (%process-events events fspecs)
-    (let loop ((events events))
-      (when (not (null? events))
-        (let* ((event (car events))
-               (type (fam-event-type event))
-               (mp (fam-event-monitored-path event))
-               (fs (assoc mp fspecs)))
-          (when (and fs (or (eq? 'all-fam-events (fspec-evs fs))
-                            (memq type (fspec-evs fs))))
-            ((fspec-proc fs) event)))
-        (loop (cdr events)))))
+  (define (%process-events events ft)
+    (let ((fc (fam-task-fc ft))
+          (fspecs (fam-task-fspecs ft)))
+      (let loop ((events events))
+        (when (not (null? events))
+          (let* ((event (car events))
+                 (type (fam-event-type event))
+                 (mp (fam-event-monitored-path event))
+                 (path (fam-event-path event))
+                 (fs (hash-table-get fspecs mp #f)))
+            (when fs
+              (when (%accepts-type fs type) ((fspec-proc fs) event))
+              (when (and (fspec-rec fs)
+                         (or (eq? type 'FAMExists) (eq? type 'FAMCreated))
+                         (not (string=? path mp))
+                         (not (is-file-path? path)))
+                (fam-monitor-path fc path)
+                (hash-table-put! fspecs path fs)))
+            (loop (cdr events)))))))
 
-  (define (%process-msg msg fc fspecs)
-    (case (car msg)
-      ((add)
-       (fam-monitor-path fc (fspec-path (cdr msg)))
-       (cons (cdr msg) fspecs))
-      ((remove)
-       (remove (cdr msg) fspecs (lambda (it fs) (equal? it (fspec-path fs)))))
-      ((suspend) (fam-suspend-path-monitoring fc (cdr msg)) fspecs)
-      ((resume) (fam-resume-path-monitoring fc (cdr msg)) fspecs)
-      (else fspecs)))
+  (define (%process-msg msg ft)
+    (let ((fc (fam-task-fc ft))
+          (fspecs (fam-task-fspecs ft)))
+      (case (car msg)
+        ((add)
+         (when (fam-monitor-path fc (cadr msg))
+           (hash-table-put! fspecs (cadr msg) (caddr msg))))
+        ((remove) (hash-table-remove! fspecs (cdr msg)))
+        ((suspend) (fam-suspend-path-monitoring fc (cdr msg)))
+        ((resume) (fam-resume-path-monitoring fc (cdr msg)))
+        (else (display (format "Unexpected message: ~A~%" msg))))))
 
   (define (%process-msgs ft k)
     (let loop ((msg (async-channel-try-get (fam-task-channel ft))))
@@ -94,9 +99,7 @@
         (when (eq? msg 'exit)
           (%close ft)
           (k 'exit))
-        (set-fam-task-fspecs! ft (%process-msg msg
-                                               (fam-task-fc ft)
-                                               (fam-task-fspecs ft)))
+        (%process-msg msg ft)
         (loop (async-channel-try-get (fam-task-channel ft))))))
 
   (define (%close ft)
@@ -107,22 +110,22 @@
   (define (%periodic-loop ft k)
     (let loop ()
       (sleep (fam-task-period ft))
-      (%process-events (fam-pending-events (fam-task-fc ft))
-                       (fam-task-fspecs ft))
+      (%process-events (fam-pending-events (fam-task-fc ft)) ft)
       (%process-msgs ft k)
       (loop)))
 
   (define (%blocking-loop ft k)
     (define (next) (fam-next-event (fam-task-fc ft) #t))
     (let loop ((event (next)))
-      (%process-events (list event) (fam-task-fspecs ft))
+      (%process-events (list event) ft)
       (%process-msgs ft k)
       (loop (next))))
 
   (define (%monitor ft)
     (lambda ()
-      (for-each (lambda (fspec) (fam-monitor-path (fam-task-fc ft) (fspec-path fspec)))
-                (fam-task-fspecs ft))
+      (hash-table-for-each (fam-task-fspecs ft)
+                           (lambda (path fspec)
+                             (fam-monitor-path (fam-task-fc ft) path)))
       (call/cc
        (lambda (k)
          ((if (> (fam-task-period ft) 0) %periodic-loop %blocking-loop) ft k)))))
@@ -130,7 +133,11 @@
   (define fam-task-create
     (case-lambda
       (() (fam-task-create 0.01))
-      ((period) (make-fam-task #f (make-async-channel) #f '() period))))
+      ((period) (make-fam-task #f
+                               (make-async-channel)
+                               #f
+                               (make-hash-table 'equal)
+                               period))))
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
@@ -142,7 +149,7 @@
                        #t)))))
 
   (define (fam-task-monitored-paths ft)
-    (map fspec-path (fam-task-fspecs ft)))
+    (hash-table-map (lambda (k v) k) (fam-task-fspecs ft)))
 
   (define (%fam-task-proc proc)
     (lambda (ft)
@@ -176,11 +183,14 @@
   (define (fam-task-resume-monitoring ft path)
     (%send-msg ft (cons 'resume path)))
 
-  (define (fam-task-add-path ft . fspec)
-    (%check-fs fspec)
-    (if (not (fam-task-thread ft))
-        (set-fam-task-fspecs! ft (cons fspec (fam-task-fspecs ft)))
-        (%send-msg ft (cons 'add fspec))))
+  (define (fam-task-add-path ft path proc
+                             &optional (events 'all-fam-events) (recursive #f))
+    (let* ((path (path->string (path->complete-path path)))
+           (recursive (and recursive (not (is-file-path? path))))
+           (fspec (make-fspec proc events recursive)))
+      (if (not (fam-task-thread ft))
+          (hash-table-put! (fam-task-fspecs ft) path fspec)
+          (%send-msg ft (list 'add path fspec)))))
 
   (define (fam-task-remove-path ft path)
     (%send-msg ft (cons 'remove path)))

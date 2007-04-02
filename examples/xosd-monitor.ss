@@ -20,7 +20,7 @@ exec mzscheme -r "$0" "$@"
 (xosd-set-colour xosd-inst "yellow")
 (xosd-set-shadow-colour xosd-inst "black")
 (xosd-set-outline-colour xosd-inst "blue")
-(xosd-set-font xosd-inst "-adobe-courier-bold-r-*-*-34-*-*-*-*-*-*-*")
+(xosd-set-font xosd-inst "-adobe-courier-bold-r-*-*-20-*-*-*-*-*-*-*")
 
 ;; fam config
 (define (display-event event)
@@ -34,19 +34,23 @@ exec mzscheme -r "$0" "$@"
 
 (define mfiles '())
 (define period 0.01)
+(define recursive #f)
 
 (command-line
  "xosd-monitor.ss" (current-command-line-arguments)
  (once-each
   (("-n" "--native") "Use native implementation" (use-native-fam? #t))
   (("-b" "--block") "Block on next event" (set! period 0))
-  (("-p" "--period") p "Polling with given period" (set! period p)))
+  (("-p" "--period") p "Polling with given period" (set! period p))
+  (("-r" "--recursive") "Recursively monitor subdirs" (set! recursive #t)))
  (args files
        (when (null? files) (error "No monitored files/directories"))
        (set! mfiles files)))
 
 (define fam-inst (fam-task-create period))
 
-(for-each (lambda (path) (fam-task-add-path fam-inst path display-event)) mfiles)
+(for-each (lambda (path)
+            (fam-task-add-path fam-inst path display-event 'all-fam-events recursive))
+          mfiles)
 
 (fam-task-join fam-inst)
