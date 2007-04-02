@@ -1,4 +1,4 @@
-;; mz-fam.ss -- Pure-scheme fam substitution
+;; fam-mz.ss -- Pure-scheme fam substitution
 
 ;; Copyright (C) 2007 by Jose Antonio Ortega Ruiz
 
@@ -22,7 +22,7 @@
 
 ;;; Code:
 
-(module mz-fam "fam-base.ss"
+(module fam-mz "fam-base.ss"
 
   (provide make-mz-fam)
 

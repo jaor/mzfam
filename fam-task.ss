@@ -43,7 +43,7 @@
 
   (require "fam-utils.ss"
            "fam.ss"
-           "mz-fam.ss"
+           "fam-mz.ss"
            (lib "async-channel.ss"))
 
   (define use-native-fam? (make-parameter (not (fam-available?))
@@ -51,9 +51,6 @@
 
   (define-struct fam-task (thread channel fc fspecs period))
   (define-struct fspec (proc evs rec))
-
-  (define (%make-fspec proc &optional (events 'all-fam-events) (recursive #f))
-    (make-fspec proc events recursive))
 
   (define (%accepts-type fspec type)
     (and fspec
@@ -184,9 +181,10 @@
     (%send-msg ft (cons 'resume path)))
 
   (define (fam-task-add-path ft path proc
-                             &optional (events 'all-fam-events) (recursive #f))
+                             &optional (events #f) (recursive #f))
     (let* ((path (path->string (path->complete-path path)))
            (recursive (and recursive (not (is-file-path? path))))
+           (events (if (list? events) events 'all-fam-events))
            (fspec (make-fspec proc events recursive)))
       (if (not (fam-task-thread ft))
           (hash-table-put! (fam-task-fspecs ft) path fspec)

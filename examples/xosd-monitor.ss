@@ -50,7 +50,7 @@ exec mzscheme -r "$0" "$@"
 (define fam-inst (fam-task-create period))
 
 (for-each (lambda (path)
-            (fam-task-add-path fam-inst path display-event 'all-fam-events recursive))
+            (fam-task-add-path fam-inst path display-event #f recursive))
           mfiles)
 
 (fam-task-join fam-inst)
