@@ -33,5 +33,5 @@
 \.cvsignore$
 (^|/)Thumbs\.db$
 (^|/)autom4te\.cache($|/)
-^doc/auto($|/)
+^doc/(auto|html)($|/)
 
