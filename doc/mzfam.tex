@@ -1,13 +1,23 @@
 \newcommand{\MzFam}{\textit{MzFAM}}
 
+\usepackage{graphicx}
+
 \documentclass[twoside]{report}
+
+\htmlimageformat{png}
 
 \title{MzFAM: A File Alteration Monitor for MzScheme}
 \author{Jos\'e Antonio Ortega Ruiz <jao@gnu.org>}
 \date{}
 
+\tableofcontents
+
 \chapter{Introduction}
 \label{cha:introduction}
+
+\htmlonly
+\rawhtml<img align="right" vspace="4" hspace="4" src="mzfam.png"/>\endrawhtml
+\endhtmlonly
 
 \MzFam\ provides a series of Scheme utilities to monitor and react to
 filesystem changes. It exports a high-level interface consisting of
@@ -24,7 +34,8 @@ defined by the \scm{fam-base} module. You may use \scm{fam} or
 \scm{fam-base} are, basically, one-to-one counterparts of those
 provided by the \texttt{libfam} C library.
 
-Chapter~\ref{cha:fam-tasks} describes FAM tasks, and should provided
+
+Chapter~\ref{cha:fam-tasks} describes FAM tasks, and should provide
 all the information needed to use \MzFam\ in your programs. In case
 you need more fine-grained control over your file-monitoring, turn to
 chapter~\ref{cha:low-level-interface}, which describes the generic
