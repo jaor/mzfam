@@ -33,7 +33,11 @@
   (defclass <mz-fam> () (files :initvalue '()) (events :initvalue '()) :auto #t)
 
   (defclass <monitored-file> ()
-    path (mod-time :initvalue 0) (last-event :initvalue 'FAMNew) (enabled? :initvalue #t)
+    path
+    (mod-time :initvalue 0)
+    (last-event :initvalue 'FAMNew)
+    (enabled? :initvalue #t)
+    (events :initvalue '())
    :autoaccessors #t :autoinitargs #t)
 
   (defclass <monitored-folder> (<monitored-file>) (children :initvalue '())
@@ -80,8 +84,14 @@
         (make <monitored-folder> :path pathname)))
 
   (defmethod (%pending-events (mf <monitored-file>))
-    (let loop ((event (%next-event mf)) (events '()))
-      (if (not event) (reverse events) (loop (%next-event mf) (cons event events)))))
+    (let* ((events (let loop ((event (%next-event mf)) (events '()))
+                     (if (not event)
+                         (reverse events)
+                         (loop (%next-event mf) (cons event events)))))
+           (events (append (monitored-file-events mf) events))
+           (enabled? (monitored-file-enabled? mf)))
+      (set-monitored-file-events! mf (if enabled? '() events))
+      (if enabled? events '())))
 
   (define (%refresh-children! mf &optional (init #f))
     (let* ((path (monitored-file-path mf))
