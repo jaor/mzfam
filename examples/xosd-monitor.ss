@@ -43,7 +43,7 @@ exec mzscheme -r "$0" "$@"
   (("-r" "--recursive") "Recursively monitor subdirs" (set! recursive #t)))
  (once-any
   (("-b" "--block") "Block on next event" (set! period 0))
-  (("-p" "--period") p "Polling with given period" (set! period p)))
+  (("-p" "--period") p "Polling with given period" (set! period (string->number p))))
  (args files
        (when (null? files) (error "No monitored files/directories"))
        (set! mfiles files)))
