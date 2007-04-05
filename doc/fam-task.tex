@@ -2,6 +2,121 @@
 \chapter{FAM Tasks}
 \label{cha:fam-tasks}
 
+This chapter describes \MzFam's high-level interface, which,
+hopefully, will fulfil all you file monitoring needs (if that's not
+the case you can either \urlh{mailto:jao@gnu.org}{bug me} to improve the
+interface or roll your own using the low-level interface detailed in
+subsequent chapters).
+
+We begin with some concrete usage examples in
+section~\ref{sec:basic-usage} to get the gist of how FAM tasks work
+(as you'll see, there's no rocket science involved), followed by
+reference sections giving you all the details of the available APIs
+(using the dry, legalistic tone we all know and love).
+
+\section{Basic usage}
+\label{sec:basic-usage}
+
+A FAM task is just a thread that monitors a set of files or
+directories. Whenever it notices a change in any of them, the task
+checks whether you've expressed interest on being notified for that
+kind of change and invokes the corresponding procedure (also provided
+by you as a token of your interest) with a so-called \textit{FAM
+  event} as its argument. A FAM event is just a struct containing the
+monitored path, the path of the altered file (which may be different
+from the monitored path when the latter is a directory), a symbol (or
+\textit{event type}) describing the type of alteration (file modified,
+created, deleted and so on) and a timestamp.
+
+So, using FAM tasks is a simple matter of:
+\begin{itemize}
+\item Creating a FAM task instance using \scm{(fam-task-create)}.
+\item Registering one or more paths to be monitored (using
+  \scm{fam-task-add-path}), providing, for each one, a procedure
+  handling events and, optionally, a list of event types you're
+  interested on.
+\item Starting (or joining) the FAM task using \scm{fam-task-start}
+  (\scm{fam-task-join}).
+\end{itemize}
+Let us spell out this process in a fully functional, if a bit silly,
+program:
+\scm{
+(require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 0)))
+
+(define ft (fam-task-create))
+
+(define (display-event event)
+  (let ((mp (fam-event-monitored-path event))
+        (p (fam-event-path event))
+        (type (fam-event-type->string (fam-event-type event)))
+        (time (fam-event-timestamp event)))
+    (display (format "~A: ~A while monitoring ~A (~A)~%" p type mp time))))
+
+(when (fam-task-add-path ft "/home/jao/tmp" display-event)
+  (fam-task-join ft))
+
+(error "Ooops, fam task exited unexpectedly!")
+}
+The above code shows the four selectors available to extract relevant
+information from FAM events you receive, besides an otherwise useless
+function that comes in handy when writing tutorial snippets. You can
+also see the most simple way of adding a path to the set monitored by
+a FAM task (using \scm{fam-task-add-path}). Note that the monitoring
+thread is not started until we call \scm{fam-task-join}, which, in
+addition, makes the current thread wait on the FAM task's. The
+alternative is to use \scm{fam-task-start}, which returns after
+spawning the monitoring thread and let's you go on with your business.
+Those business may include, incidentally, adding new paths to be
+monitored or removing previously added ones (as in
+\scm{(fam-task-remove-path ft "/home/jao/tmp")}), or even stoping the
+monitoring task (\scm{(fam-task-stop ft)}). This slightly more
+interesting program exercises all those abilities:
+\scm{
+(require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 0)))
+
+(define ft (fam-task-create))
+
+(define (display-event event)
+  ;; as above ...)
+
+(unless (fam-task-start ft)
+  (error "Could not start monitoring task"))
+
+(display (format "Monitoring using ~A started~%"
+                 (if (fam-use-native?) "scheme FAM" "FAM/Gamin daemon")))
+
+(let loop ()
+  (display "(a)dd, (r)emove, (s)uspend, r(e)sume, (q)uit: ")
+  (let ((op (read)))
+    (if (memq op '(e a r s))
+        (let ((path (begin (display "Path: ") (read-string))))
+          (if (case op
+                ((a) (fam-task-add-path ft path display-event))
+                ((r) (fam-task-remove-path ft path))
+                ((s) (fam-task-suspend ft path))
+                ((e) (fam-task-resume ft path)))
+              (display "OK")
+              (display "KO"))
+          (newline)))
+    (if (eq? op 'q) (fam-task-stop ft) (loop))))
+
+(when (not (null? (fam-task-monitored-paths ft)))
+  (display "You left some paths to monitor...")
+  (unless (fam-task-join ft) (error "Couldn't restart monitoring")))
+}
+
+This example brings into play almost all the interesting procedures
+exported by \scm{fam-task}. As you have surely noticed, there's no
+problem restarting a stopped FAM task, the only caveat being that it
+remembers the paths it was monitoring but will not catch any event
+that happened when it was dead. The parameter \scm{fam-use-native?}
+tells us whether \MzFam\ has been able to contact a running FAM/Gamin
+daemon (and the associated C library): if that's the case,
+\scm{(fam-use-native?)} evaluates to \scm{#f}; otherwise the fall-back
+pure-scheme implementation is used\numfootnote{You can instruct \MzFam\
+  to use the scheme implementation (provided by the \scm{fam-mz}
+  module) no matter what with \scm{(fam-use-native? #t)} either in a
+  line of its own or as part of a \scm{parameterize} form.}
 
 %%% Local Variables:
 %%% mode: latex

@@ -1,0 +1,70 @@
+
+\chapter{Introduction}
+\label{cha:introduction}
+
+\htmlonly
+\rawhtml<img align="right" vspace="4" hspace="4" src="mzfam.png"/>\endrawhtml
+\endhtmlonly
+
+\MzFam\ provides a series of Scheme utilities to monitor and react to
+filesystem changes. It exports a high-level interface consisting of
+monitoring tasks that run as independent threads and invoke callback
+procedures each time a file alteration is detected. These high-level
+tasks (provided by the module \scm{fam-task}) are implemented using
+either Linux's FAM/Gamin monitor or, in systems (like Windows) where
+it is not available, a pure Scheme fall-back implementation. This
+low-level functionality is in turn provided by two modules (\scm{fam}
+and \scm{fam-mz}, respectively) which share the generic interface
+defined by the \scm{fam-base} module. You may use \scm{fam} or
+\scm{fam-mz} directly (bypassing the high-level interface) if you find
+\scm{fam-task} not suitable for your needs. The generic functions in
+\scm{fam-base} are, basically, one-to-one counterparts of those
+provided by the \texttt{libfam} C library.
+
+
+Using FAM tasks is quite straightforward. So, the impatient among you
+may prefer to take a look at the procedures exported by
+\texttt{fam-task.ss} (and maybe the sample scripts in the aptly named
+\texttt{examples} subdirectory) and skip the rest of this manual.
+For those of you still here, chapter~\ref{cha:fam-tasks} describes FAM
+tasks, and should provide all the information needed to use \MzFam\ in
+your programs. In case you need more fine-grained control over your
+file-monitoring, turn to chapter~\ref{cha:low-level-interface}, which
+describes the generic interface exported by the \scm{fam-base} module
+and implemented by \scm{fam} (using \texttt{libfam} (or
+\texttt{libgamin})) and by \scm{fam-mz} (using Scheme).
+
+
+\section{Getting MzFAM}
+\label{sec:getting-mzfam}
+
+The latest \MzFam\ stable release
+\urlh{http://planet.plt-scheme.org/display.ss?package=mzfam.plt&owner=jao}{is
+  available} on \urlh{http://planet.plt-scheme.org}{PLaneT\\ (\1)},
+where you can also browse the source code and documentation. As with
+any other PLaneT-enabled package, using a require line like this one
+\scm{
+(require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 0)))
+}
+anywhere in your program will trigger the network magic necessary
+to get \MzFam\ installed in your system.
+
+If you feel like living on the bleeding edge, the development tree
+(which includes build scripts and the documentation sources) can also
+be \urlh{http://hacks-galore.org/darcs/darcs?r=mzfam;a=tree}{browsed
+  online\\ (\1)}, and
+you can get it using \urlh{http://abridgegame.org/darcs/}{darcs\\
+  (\1)}:
+\begin{verbatim}
+    darcs get http://hacks-galore.org/jao/darcs/mzfam
+\end{verbatim}
+
+Needless to say, you're not only welcome, but actually encouraged to
+\urlh{mailto:jao@gnu.org}{send the author} bug reports, improvement
+suggestions, constructive criticism or any kind of undeserved praise.
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "mzfam"
+%%% End:

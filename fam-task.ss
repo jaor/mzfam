@@ -39,14 +39,14 @@
            fam-event-monitored-path
            fam-event-type->string
 
-           use-native-fam?)
+           fam-use-native?)
 
   (require "fam-utils.ss"
            "fam.ss"
            "fam-mz.ss"
            (lib "async-channel.ss"))
 
-  (define use-native-fam? (make-parameter (not (fam-available?))
+  (define fam-use-native? (make-parameter (not (fam-available?))
                                           (lambda (v) (or (not (fam-available?)) v))))
 
   (define-struct fam-task (thread channel fc fspecs period))
@@ -138,7 +138,7 @@
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
-         (let ((fc (or (and (not (use-native-fam?)) (make-fam))
+         (let ((fc (or (and (not (fam-use-native?)) (make-fam))
                        (make-mz-fam))))
            (and fc
                 (begin (set-fam-task-fc! ft fc)

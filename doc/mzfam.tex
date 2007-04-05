@@ -1,48 +1,21 @@
 \newcommand{\MzFam}{\textit{MzFAM}}
 
-\usepackage{graphicx}
+%\usepackage{graphicx}
+%\htmlimageformat{png}
 
 \documentclass[twoside]{report}
-
-\htmlimageformat{png}
 
 \title{MzFAM: A File Alteration Monitor for MzScheme}
 \author{Jos\'e Antonio Ortega Ruiz <jao@gnu.org>}
 \date{}
 
+\begin{flushright}
+  \textit{If all else fails, read the instructions (Donald Knuth)}.
+\end{flushright}
+
 \tableofcontents
 
-\chapter{Introduction}
-\label{cha:introduction}
-
-\htmlonly
-\rawhtml<img align="right" vspace="4" hspace="4" src="mzfam.png"/>\endrawhtml
-\endhtmlonly
-
-\MzFam\ provides a series of Scheme utilities to monitor and react to
-filesystem changes. It exports a high-level interface consisting of
-monitoring tasks that run as independent threads and invoke callback
-procedures each time a file alteration is detected. These high-level
-tasks (provided by the module \scm{fam-task}) are implemented using
-either Linux's FAM/Gamin monitor or, in systems (like Windows) where
-it is not available, a pure Scheme fall-back implementation. This
-low-level functionality is in turn provided by two modules (\scm{fam}
-and \scm{fam-mz}, respectively) which share the generic interface
-defined by the \scm{fam-base} module. You may use \scm{fam} or
-\scm{fam-mz} directly (bypassing the high-level interface) if you find
-\scm{fam-task} not suitable for your needs. The generic functions in
-\scm{fam-base} are, basically, one-to-one counterparts of those
-provided by the \texttt{libfam} C library.
-
-
-Chapter~\ref{cha:fam-tasks} describes FAM tasks, and should provide
-all the information needed to use \MzFam\ in your programs. In case
-you need more fine-grained control over your file-monitoring, turn to
-chapter~\ref{cha:low-level-interface}, which describes the generic
-interface exported by the \scm{fam-base} module and implemented by
-\scm{fam} (using \texttt{libfam} (or \texttt{libgamin})) and by
-\scm{fam-mz} (using Scheme).
-
+\include{intro}
 \include{fam-task}
 \include{fam}
 
