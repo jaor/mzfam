@@ -42,7 +42,7 @@ exec mzscheme -r "$0" "$@"
 
 (let loop ((op (read-op)))
   (if (case op
-        ((p) (display (fam-task-monitored-paths ft)) #t)
+        ((p) (display (fam-task-monitored-paths ft)) (newline) #t)
         ((a) (fam-task-add-path ft (read-path) display-event))
         ((r) (fam-task-remove-path ft (read-path)))
         ((s) (fam-task-suspend-monitoring ft (read-path)))
