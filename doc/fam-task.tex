@@ -50,7 +50,7 @@ program:
         (p (fam-event-path event))
         (type (fam-event-type->string (fam-event-type event)))
         (time (fam-event-timestamp event)))
-    (display (format "~A: ~A while monitoring ~A (~A)~%" p type mp time))))
+    (printf "~A: ~A while monitoring ~A (~A)~%" p type mp time)))
 
 (when (fam-task-add-path ft "/home/jao/tmp" display-event)
   (fam-task-join ft))
@@ -82,23 +82,33 @@ interesting program exercises all those abilities:
 (unless (fam-task-start ft)
   (error "Could not start monitoring task"))
 
-(display (format "Monitoring using ~A started~%"
-                 (if (fam-use-native?) "scheme FAM" "FAM/Gamin daemon")))
+(printf "Monitoring using ~A started~%"
+        (if (fam-use-native?) "scheme FAM" "FAM/Gamin daemon"))
 
-(let loop ()
-  (display "(a)dd, (r)emove, (s)uspend, r(e)sume, (q)uit: ")
-  (let ((op (read)))
-    (if (memq op '(e a r s))
-        (let ((path (begin (display "Path: ") (read-string))))
-          (if (case op
-                ((a) (fam-task-add-path ft path display-event))
-                ((r) (fam-task-remove-path ft path))
-                ((s) (fam-task-suspend ft path))
-                ((e) (fam-task-resume ft path)))
-              (display "OK")
-              (display "KO"))
-          (newline)))
-    (if (eq? op 'q) (fam-task-stop ft) (loop))))
+(define (display-event event)
+  (printf "* ~A: ~A (~A)~%"
+          (fam-event-path event)
+          (fam-event-type->string (fam-event-type event))
+          (fam-event-monitored-path event)))
+
+(define (read-op)
+  (printf "(a)dd, (r)emove, (s)uspend, r(e)sume, (p)rint, (q)uit: ")
+  (let ((op (read))) (read-line) op))
+
+(define (read-path) (printf "Path: ") (read-line))
+
+(let loop ((op (read-op)))
+  (if (case op
+        ((p) (display (fam-task-monitored-paths ft)) (newline) #t)
+        ((a) (fam-task-add-path ft (read-path) display-event))
+        ((r) (fam-task-remove-path ft (read-path)))
+        ((s) (fam-task-suspend-monitoring ft (read-path)))
+        ((e) (fam-task-resume-monitoring ft (read-path)))
+        (else #f))
+      (display "OK")
+      (display "KO"))
+  (newline)
+  (if (eq? op 'q) (fam-task-stop ft) (loop (read-op))))
 
 (when (not (null? (fam-task-monitored-paths ft)))
   (display "You left some paths to monitor...")
@@ -109,14 +119,17 @@ This example brings into play almost all the interesting procedures
 exported by \scm{fam-task}. As you have surely noticed, there's no
 problem restarting a stopped FAM task, the only caveat being that it
 remembers the paths it was monitoring but will not catch any event
-that happened when it was dead. The parameter \scm{fam-use-native?}
+that happened when it was dead. One can also suspend and resume
+monitoring of a previously added path, the difference with just
+add-remove-add being that events associated with a suspended path are
+duly reported upon resuming. The parameter \scm{fam-use-native?}
 tells us whether \MzFam\ has been able to contact a running FAM/Gamin
 daemon (and the associated C library): if that's the case,
 \scm{(fam-use-native?)} evaluates to \scm{#f}; otherwise the fall-back
 pure-scheme implementation is used\numfootnote{You can instruct \MzFam\
   to use the scheme implementation (provided by the \scm{fam-mz}
   module) no matter what with \scm{(fam-use-native? #t)} either in a
-  line of its own or as part of a \scm{parameterize} form.}
+  line of its own or as part of a \scm{parameterize} form.}.
 
 %%% Local Variables:
 %%% mode: latex

@@ -25,8 +25,6 @@
   (provide fam-task-create
            fam-task-start
            fam-task-join
-           fam-task-suspend
-           fam-task-resume
            fam-task-stop
            fam-task-add-path
            fam-task-remove-path
@@ -104,10 +102,21 @@
     (fam-release (fam-task-fc ft))
     (set-fam-task-fc! ft #f))
 
+  (define (%uniquify events)
+    (define (eqev? a b)
+      (and (eq? (fam-event-type a) (fam-event-type b))
+           (string=? (fam-event-path a) (fam-event-path b))
+           (string=? (fam-event-monitored-path a) (fam-event-monitored-path b))))
+    (let loop ((events events) (result '()))
+      (if (null? events)
+          (reverse result)
+          (loop (remove (car events) (cdr events) eqev?)
+                (cons (car events) result)))))
+
   (define (%periodic-loop ft k)
     (let loop ()
       (sleep (fam-task-period ft))
-      (%process-events (fam-pending-events (fam-task-fc ft)) ft)
+      (%process-events (%uniquify (fam-pending-events (fam-task-fc ft))) ft)
       (%process-msgs ft k)
       (loop)))
 
@@ -146,7 +155,7 @@
                        #t)))))
 
   (define (fam-task-monitored-paths ft)
-    (hash-table-map (lambda (k v) k) (fam-task-fspecs ft)))
+    (hash-table-map (fam-task-fspecs ft) (lambda (k v) k)))
 
   (define (%fam-task-proc proc)
     (lambda (ft)

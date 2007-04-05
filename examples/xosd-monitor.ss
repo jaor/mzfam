@@ -3,9 +3,9 @@
 exec mzscheme -r "$0" "$@"
 |#
 
-;;; Code:
+;;; Code: -*- scheme -*-
 
-(require (lib "fam-task.ss" "fam")
+(require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 0))
          (lib "xosd.ss" "ffi")
          (lib "cmdline.ss"))
 
@@ -40,9 +40,10 @@ exec mzscheme -r "$0" "$@"
  "xosd-monitor.ss" (current-command-line-arguments)
  (once-each
   (("-n" "--native") "Use native implementation" (use-native-fam? #t))
-  (("-b" "--block") "Block on next event" (set! period 0))
-  (("-p" "--period") p "Polling with given period" (set! period p))
   (("-r" "--recursive") "Recursively monitor subdirs" (set! recursive #t)))
+ (once-any
+  (("-b" "--block") "Block on next event" (set! period 0))
+  (("-p" "--period") p "Polling with given period" (set! period p)))
  (args files
        (when (null? files) (error "No monitored files/directories"))
        (set! mfiles files)))
