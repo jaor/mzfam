@@ -35,6 +35,7 @@
            fam-event-path
            fam-event-type
            fam-event-monitored-path
+           fam-event-timestamp
            fam-event-type->string
 
            fam-use-native?)
@@ -42,7 +43,8 @@
   (require "fam-utils.ss"
            "fam.ss"
            "fam-mz.ss"
-           (lib "async-channel.ss"))
+           (lib "async-channel.ss")
+           (only (lib "list.ss" "srfi" "1") delete-duplicates!))
 
   (define fam-use-native? (make-parameter (not (fam-available?))
                                           (lambda (v) (or (not (fam-available?)) v))))
@@ -107,11 +109,7 @@
       (and (eq? (fam-event-type a) (fam-event-type b))
            (string=? (fam-event-path a) (fam-event-path b))
            (string=? (fam-event-monitored-path a) (fam-event-monitored-path b))))
-    (let loop ((events events) (result '()))
-      (if (null? events)
-          (reverse result)
-          (loop (remove (car events) (cdr events) eqev?)
-                (cons (car events) result)))))
+    (delete-duplicates! events eqev?))
 
   (define (%periodic-loop ft k)
     (let loop ()

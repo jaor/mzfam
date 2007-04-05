@@ -7,7 +7,8 @@ exec mzscheme -r "$0" "$@"
 
 (require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 0))
          (lib "xosd.ss" "ffi")
-         (lib "cmdline.ss"))
+         (lib "cmdline.ss")
+         (lib "date.ss"))
 
 (define xosd-inst (xosd-create))
 
@@ -24,10 +25,11 @@ exec mzscheme -r "$0" "$@"
 
 ;; fam config
 (define (display-event event)
-  (let ((msg (format "~A: ~A (~A)"
+  (let ((msg (format "~A: ~A (~A) - ~A"
                      (fam-event-path event)
                      (fam-event-type->string (fam-event-type event))
-                     (fam-event-monitored-path event))))
+                     (fam-event-monitored-path event)
+                     (date->string (seconds->date (fam-event-timestamp event)) #t))))
     (xosd-display-string xosd-inst msg)
     (sleep 2)
     (xosd-hide xosd-inst)))
