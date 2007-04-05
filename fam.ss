@@ -157,7 +157,7 @@
                                                     *max-path-len*))
                        (file (path->string
                               (path->complete-path (%bs->path fby) mpath)))
-                       (time (file-or-directory-modify-seconds file)))
+                       (time (last-modification-time file)))
                   (make <fam-event> :monitored-path mpath
                                     :path file
                                     :type (FAMEvent-code event)

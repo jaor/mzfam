@@ -23,7 +23,8 @@
 ;;; Code:
 
 (module fam-utils mzscheme
-  (provide is-file-path?)
+  (provide is-file-path?
+           last-modification-time)
 
   (require (lib "file.ss"))
 
@@ -32,6 +33,12 @@
            (is-dir? (and (not is-file?) (directory-exists? pathname)))
            (is-file? (if (or is-file? is-dir?) is-file? (path-only pathname))))
       is-file?))
+
+  (define (last-modification-time pathname)
+    (if (or (file-exists? pathname)
+            (directory-exists? pathname))
+        (file-or-directory-modify-seconds pathname)
+        (current-seconds)))
 
 
 )
