@@ -155,10 +155,13 @@
                 (let* ((mpath (%req->%path fc (FAMEvent-fr event)))
                        (fby (make-sized-byte-string (FAMEvent-filename event)
                                                     *max-path-len*))
-                       (file (path->complete-path (%bs->path fby) mpath)))
+                       (file (path->string
+                              (path->complete-path (%bs->path fby) mpath)))
+                       (time (file-or-directory-modify-seconds file)))
                   (make <fam-event> :monitored-path mpath
-                                    :path (path->string file)
-                                    :type (FAMEvent-code event)))))))
+                                    :path file
+                                    :type (FAMEvent-code event)
+                                    :timestamp time))))))
 
   (defmethod (fam-pending-events (fc <fam-connection>))
     (let loop ((next (fam-next-event fc)) (events '()))

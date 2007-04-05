@@ -115,21 +115,21 @@ interesting program exercises all those abilities:
   (unless (fam-task-join ft) (error "Couldn't restart monitoring")))
 }
 
-This example brings into play almost all the interesting procedures
-exported by \scm{fam-task}. As you have surely noticed, there's no
-problem restarting a stopped FAM task, the only caveat being that it
-remembers the paths it was monitoring but will not catch any event
-that happened when it was dead. One can also suspend and resume
-monitoring of a previously added path, the difference with just
-add-remove-add being that events associated with a suspended path are
-duly reported upon resuming. The parameter \scm{fam-use-native?}
-tells us whether \MzFam\ has been able to contact a running FAM/Gamin
-daemon (and the associated C library): if that's the case,
-\scm{(fam-use-native?)} evaluates to \scm{#f}; otherwise the fall-back
-pure-scheme implementation is used\numfootnote{You can instruct \MzFam\
-  to use the scheme implementation (provided by the \scm{fam-mz}
-  module) no matter what with \scm{(fam-use-native? #t)} either in a
-  line of its own or as part of a \scm{parameterize} form.}.
+This example brings into play all the procedures exported by
+\scm{fam-task}. As you have surely noticed, there's no problem
+restarting a stopped FAM task, the only caveat being that it remembers
+the paths it was monitoring but will not catch any event that happened
+when it was dead. One can also suspend and resume monitoring of a
+previously added path, the difference with just add-remove-add being
+that events associated with a suspended path are duly reported upon
+resuming. The parameter \scm{fam-use-native?} tells us whether \MzFam\
+has been able to contact a running FAM/Gamin daemon (and the
+associated C library): if that's the case, \scm{(fam-use-native?)}
+evaluates to \scm{#f}; otherwise the fall-back pure-scheme
+implementation is used\numfootnote{You can instruct \MzFam\ to use the
+  scheme implementation (provided by the \scm{fam-mz} module) no
+  matter what with \scm{(fam-use-native? #t)} either in a line of its
+  own or as part of a \scm{parameterize} form.}.
 
 %%% Local Variables:
 %%% mode: latex

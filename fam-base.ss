@@ -36,11 +36,11 @@
            fam-pending-events
            fam-release
 
-           make-fam-event
            fam-event-type->string
            fam-event-path
            fam-event-monitored-path
            fam-event-type
+           fam-event-timestamp
            <fam-event>)
 
   (defgeneric (fam-release fc))
@@ -53,7 +53,7 @@
   (defgeneric (fam-next-event fc &optional wait))
   (defgeneric (fam-pending-events fc))
 
-  (defclass <fam-event> () path type monitored-path :auto #t)
+  (defclass <fam-event> () path type monitored-path timestamp :auto #t)
   (defmethod (print-object (fev <fam-event>) esc? port)
     (print-object-with-slots fev esc? port))
 

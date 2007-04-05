@@ -41,8 +41,6 @@
 
   (defclass <monitored-child> (<monitored-file>) :auto #t)
 
-  (defclass <mz-fam-event> (<fam-event>) time :auto #t)
-
   (defmethod (%next-event (mc <monitored-child>))
     (let ((event (call-next-method)))
       (and event
@@ -71,10 +69,10 @@
            (unless (eq? lev nev) (set-monitored-file-last-event! mf nev))
            (unless (= omt mt) (set-monitored-file-mod-time! mf mt))
            (and (not (eq? nev 'FAMNull))
-                (make <mz-fam-event> :path path
-                                     :type nev
-                                     :monitored-path path
-                                     :time mt)))))
+                (make <fam-event> :path path
+                                  :type nev
+                                  :monitored-path path
+                                  :timestamp mt)))))
 
   (define (%path->mf pathname)
     (if (is-file-path? pathname)
@@ -120,10 +118,10 @@
                 (mfolder (monitored-file-path mf)))
             (for-each (lambda (event) (slot-set! event 'monitored-path mfolder)) nevents)
             (if (eq? (monitored-file-last-event mf) 'FAMNew)
-                (let ((end (make <mz-fam-event> :path mfolder
-                                                :monitored-path mfolder
-                                                :type 'FAMEndExist
-                                                :time (current-seconds))))
+                (let ((end (make <fam-event> :path mfolder
+                                             :monitored-path mfolder
+                                             :type 'FAMEndExist
+                                             :timestamp (current-seconds))))
                   (set-monitored-file-last-event! mf 'FAMNull)
                   (append nevents (list end)))
                 nevents)))
@@ -131,8 +129,8 @@
 
   (defmethod (%pending-events (fc <mz-fam>))
     (sort! (mappend! %pending-events (mz-fam-files fc))
-           (lambda (e1 e2) (< (mz-fam-event-time e1)
-                         (mz-fam-event-time e2)))))
+           (lambda (e1 e2) (< (fam-event-timestamp e1)
+                         (fam-event-timestamp e2)))))
 
   (defmethod (%find-path (mt <monitored-file>) (path <string>))
     (and (string=? (monitored-file-path mt) path)
