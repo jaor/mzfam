@@ -26,6 +26,7 @@
            fam-task-start
            fam-task-join
            fam-task-stop
+           fam-task-running?
            fam-task-add-path
            fam-task-remove-path
            fam-task-suspend-monitoring
@@ -155,24 +156,15 @@
   (define (fam-task-monitored-paths ft)
     (hash-table-map (fam-task-fspecs ft) (lambda (k v) k)))
 
-  (define (%fam-task-proc proc)
-    (lambda (ft)
-      (and (thread? (fam-task-thread ft))
-           (proc (fam-task-thread ft)))))
-
-  (define fam-task-running? (%fam-task-proc thread-running?))
-  (define fam-task-suspend (%fam-task-proc thread-suspend))
-  (define fam-task-resume (%fam-task-proc thread-resume))
-
-  (define (fam-task-dead? ft)
-    (or (not (fam-task-thread ft))
-        ((%fam-task-proc thread-dead?) ft)))
+  (define (fam-task-running? ft)
+    (and (fam-task-thread ft)
+         (thread-running? (fam-task-thread ft))))
 
   (define (%send-msg ft msg)
     (async-channel-put (fam-task-channel ft) msg))
 
   (define (fam-task-stop ft)
-    (when (not (fam-task-dead? ft))
+    (when (fam-task-running? ft)
       (%send-msg ft 'exit)
       (set-fam-task-thread! ft #f)))
 
