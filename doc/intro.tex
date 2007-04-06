@@ -15,31 +15,29 @@ detected. These high-level tasks (provided by the module
 or, in systems (like Windows) where it is not available, a pure Scheme
 fall-back implementation. This low-level functionality is in turn
 provided by two modules (\scm{fam} and \scm{fam-mz}, respectively)
-which share the generic interface defined by the \scm{fam-base}
-module. You may use \scm{fam} or \scm{fam-mz} directly (bypassing the
-high-level interface) if you find \scm{fam-task} not suitable for your
-needs. The generic functions in \scm{fam-base} are, basically,
-one-to-one counterparts of those provided by the \texttt{libfam} C
-library.
-
+that share the generic interface defined by a third one,
+\scm{fam-base}. You may use \scm{fam} or \scm{fam-mz} directly
+(bypassing the high-level interface) if you find \scm{fam-task} not
+suitable for your needs. The generic functions in \scm{fam-base} are,
+basically, one-to-one counterparts of those provided by the
+\texttt{libfam} C library.
 
 Using FAM tasks is quite straightforward. So, the impatient among you
 may prefer to take a look at the procedures exported by
-\texttt{fam-task.ss} (and maybe the sample scripts in the aptly named
-\texttt{examples} subdirectory) and skip the rest of this manual. For
-those of you still here, chapter~\ref{cha:fam-tasks} describes FAM
-tasks, and should provide all the information needed to use \MzFam\ in
-your programs. In chapter~\ref{cha:scmf-task-refer}, you'll find
-reference sections (written using the dry, legalistic tone we all know
-and love) with all the details of the exported \scm{fam-task}
-interface.
+\texttt{fam-task.ss} (and perhaps the sample scripts in the aptly
+named \texttt{examples} subdirectory) and skip the rest of this
+manual. For those of you still here, chapter~\ref{cha:fam-tasks} is a
+tutorial on FAM tasks, and should provide all the information
+needed to use \MzFam\ in your programs. In
+chapter~\ref{cha:scmf-task-refer}, you'll find reference sections
+(written using the dry, legalistic tone we all know and love) with all
+the details of the exported \scm{fam-task} interface.
 
 In case you need more fine-grained control over your file-monitoring,
 turn to chapter~\ref{cha:low-level-interface}, which describes the
 generic interface exported by the \scm{fam-base} module and
 implemented by \scm{fam} (using \texttt{libfam} (or
 \texttt{libgamin})) and by \scm{fam-mz} (using Scheme).
-
 
 \section{Getting MzFAM}
 \label{sec:getting-mzfam}

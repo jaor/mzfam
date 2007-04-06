@@ -50,10 +50,10 @@ exec mzscheme -r "$0" "$@"
        (when (null? files) (error "No monitored files/directories"))
        (set! mfiles files)))
 
-(define fam-inst (fam-task-create period))
+(define fam-inst (fam-task-create display-event period))
 
 (for-each (lambda (path)
-            (fam-task-add-path fam-inst path display-event #f recursive))
+            (fam-task-add-path fam-inst path #f #f recursive))
           mfiles)
 
 (fam-task-join fam-inst)

@@ -50,7 +50,7 @@
   (define fam-use-native? (make-parameter (not (fam-available?))
                                           (lambda (v) (or (not (fam-available?)) v))))
 
-  (define-struct fam-task (thread channel fc fspecs period))
+  (define-struct fam-task (thread channel fc fspecs period def-proc))
   (define-struct fspec (proc evs rec))
 
   (define (%accepts-type fspec type)
@@ -70,7 +70,8 @@
                  (path (fam-event-path event))
                  (fs (hash-table-get fspecs mp #f)))
             (when fs
-              (when (%accepts-type fs type) ((fspec-proc fs) event))
+              (when (%accepts-type fs type)
+                ((or (fspec-proc fs) (fam-task-def-proc ft)) event))
               (when (and (fspec-rec fs)
                          (or (eq? type 'FAMExists) (eq? type 'FAMCreated))
                          (not (string=? path mp))
@@ -138,11 +139,14 @@
   (define fam-task-create
     (case-lambda
       (() (fam-task-create 0.01))
-      ((period) (make-fam-task #f
+      ((x) (cond ((number? x) (fam-task-create (lambda (e) #t) x))
+                 (else (fam-task-create x 0.01))))
+      ((x y) (make-fam-task #f
                                (make-async-channel)
                                #f
                                (make-hash-table 'equal)
-                               period))))
+                               (if (number? y) y x)
+                               (if (number? y) x y)))))
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
@@ -179,12 +183,12 @@
   (define (fam-task-resume-monitoring ft path)
     (%send-msg ft (cons 'resume path)))
 
-  (define (fam-task-add-path ft path proc
-                             &optional (events #f) (recursive #f))
+  (define (fam-task-add-path ft path
+                             &optional (proc #f) (events #f) (recursive #f))
     (let* ((path (path->string (path->complete-path path)))
            (recursive (and recursive (not (is-file-path? path))))
            (events (if (list? events) events 'all-fam-events))
-           (fspec (make-fspec proc events recursive)))
+           (fspec (make-fspec (and (procedure? proc) proc) events recursive)))
       (if (not (fam-task-thread ft))
           (hash-table-put! (fam-task-fspecs ft) path fspec)
           (%send-msg ft (list 'add path fspec)))))

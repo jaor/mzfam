@@ -130,14 +130,30 @@ resuming. The parameter \scm{fam-use-native?} tells us whether \MzFam\
 has been able to contact a running FAM/Gamin daemon (and the
 associated C library): if that's the case, \scm{(fam-use-native?)}
 evaluates to \scm{#f}; otherwise the fall-back, pure-scheme
-implementation is used.
+implementation is used\numfootnote{Some may find my use of ``native''
+  in this context a bit misleading, but I like to think of Scheme as
+  my native environment. So, please, humour me.}.
 
 Incidentally, the monitoring program above has the dubious virtue of
 exposing a situation where you may be tempted to use one of the
 low-level modules directly: you just need to play with it a little and
 get nervous when the output of \scm{display-event} gets mixed with the
 loop's prompts. But of course, judicious use of MzScheme thread
-synchronisation primitives should be a better option.
+synchronisation primitives should be a better option. There's also (at
+least) one more clumsy thing about the above examples: we're
+repeatedly using the \textit{same} event handler. The nice thing about
+writing a manual being the implementor is that, when you notice silly
+thing, you can fix them; \scm{fam-task-create} accepts a default event
+handler as argument, which gets used for monitored paths added without
+one. So you could fix the examples above by replacing the right calls by
+something along the lines of:
+\scm{
+
+(define ft (fam-task-create display-event))
+...
+(fam-task-add-path ft path)
+...
+}
 
 That's basically it. The next section explores some of the available
 tweaks at your disposal to fine-tune how FAM tasks work.
@@ -155,7 +171,18 @@ back to using the pure-Scheme monitor. Nevertheless, you can instruct
 module) no matter what with \scm{(fam-use-native? #t)}, either in a
 line of its own or as part of a \scm{parameterize} form. The native
 implementation tries hard to provide the same functionality as the
-FAM-based one, but falls short in a few (hopefully minor) respects:
+FAM-based one, but falls short in a few (hopefully
+minor\numfootnote{If these issues really matter to you and you're on
+  GNU/Linux or any other system supporting the FAM daemon, the best
+  solution is of course installing the latter and let \MzFam\ use it.
+  I'm told (thank you, Chris) that on Windows there's a similar
+  C-level interface
+  (\url{http://msdn2.microsoft.com/en-us/library/aa365261.aspx}), and
+  one could use PLT's FFI to hook on that (as the \scm{fam} module
+  does with \texttt{libfam})---I don't use Windows, so unless a kind
+  contributor steps up, don't hold your breath on that. If you know of
+  a similar kernel-level subsystem for Mac OS X, just drop me a line
+  and I'll see what can be done.}) respects:
 \begin{itemize}
 \item Some, let's say, \textit{exotic} events, such as stop/start
   execution (see section~\ref{sec:fam-events} for details) are not
@@ -163,6 +190,10 @@ FAM-based one, but falls short in a few (hopefully minor) respects:
   the basis of file modification times.
 \item Blocking monitoring (see below) is only supported in FAM-based
   monitoring.
+\item Some \textit{legit} events may be missed during the sleep period
+  of the polling thread---for instance, if a file is deleted and
+  re-created quickly enough, the Scheme monitor may report a 'file
+  modified' event instead of a deletion/creation pair.
 \end{itemize}
 
 As hinted above, FAM tasks can operate in two modes, namely, polling
@@ -170,25 +201,40 @@ and blocking. In polling mode (the default) the thread sleeps for a
 while, checks for new events, invokes the needed callback procedures,
 processes requests for new, resumed or suspended paths and goes back
 to sleep. The sleep period can be provided as an optional argument to
-\scm{fam-task-create} whose default value is \scm{0.01} (i.e., ten
+\scm{fam-task-create}. Its default value is \scm{0.01} (i.e., ten
 milliseconds). Thus, if you want your FAM task to perfom its duties
 (approximately) every half second, just create it with
 \scm{(fam-task-create 0.5)}.
 
 When the FAM/Gamin daemon is available, FAM tasks can operate in
-blocking mode: they sleep as long as there're no events. You request
-this operation mode using \scm{0} as the argument passed to
-\scm{fam-task-create}. In principle, this may sound like a good idea
-in order to save a few CPU cycles, but a task that awakes every, say,
-10 ms is not what you'd call a resource hog and, more importantly,
-your FAM task won't be able to attend new monitoring requests unless a
-new event awakes it. Thus, blocking operation is probably only a good
-idea when the set of monitored paths is fixed before starting the FAM
-task at hand.
+blocking mode: they sleep as long as there're no pending events. You
+request this operation mode using \scm{0} as the argument passed to
+\scm{fam-task-create}. In principle, this may sound like a good way to
+save a few CPU cycles, but a task that awakes every, say, 10 ms is not
+what you'd call a resource hog and, more importantly, your FAM task
+won't be able to attend new monitoring requests unless a new event
+awakes it. Thus, blocking operation is probably only a good idea when
+the set of monitored paths is fixed once and for all beforehand, or
+when you'll want to modify it only if/when file alterations occur.
 
 \subsection{Path monitoring knobs}
 \label{sec:path-monit-knobs}
 
+As we have see, we tell FAM tasks to monitor a given path using
+\scm{fam-task-add-path}, which in its simplest form takes a pathname
+and a procedure of arity one as its arguments. The pathname can be
+either absolute or relative: in the latter case, it's resolved with
+respect the current working directory. The small print of how
+pathnames are handled includes:
+\begin{itemize}
+\item If the pathname points to an existing file, the system figures
+  by itself whether it denotes a directory or a regular file.
+\item Pathnames pointing to non-existent files are allowed: if they
+  spring into existence afterwards, they'll be monitored. A little
+  help from you is needed, though: if you mean to monitor a would-be
+  directory, the pathname should end with a path separator character
+  (e.g., '/' in Unix systems).
+\end{itemize}
 
 
 \section{FAM events}
