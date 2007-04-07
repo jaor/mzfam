@@ -59,6 +59,16 @@
            (or (eq? evs 'all-fam-events)
                (memq type evs)))))
 
+  (define (%fspec-rec? fspec)
+    (let ((rec (fspec-rec fspec)))
+      (or (eq? rec #t)
+          (and (number? rec) (> rec 0)))))
+
+  (define (%fspec-next fs)
+    (let ((rec (fspec-rec fs)))
+      (cond ((eq? rec #t) fs)
+            (else (make-fspec (fspec-proc fs) (fspec-evs fs) (- rec 1))))))
+
   (define (%process-events events ft)
     (let ((fc (fam-task-fc ft))
           (fspecs (fam-task-fspecs ft)))
@@ -72,12 +82,12 @@
             (when fs
               (when (%accepts-type fs type)
                 ((or (fspec-proc fs) (fam-task-def-proc ft)) event))
-              (when (and (fspec-rec fs)
+              (when (and (%fspec-rec? fs)
                          (or (eq? type 'FAMExists) (eq? type 'FAMCreated))
                          (not (string=? path mp))
                          (not (is-file-path? path)))
                 (fam-monitor-path fc path)
-                (hash-table-put! fspecs path fs)))
+                (hash-table-put! fspecs path (%fspec-next fs))))
             (loop (cdr events)))))))
 
   (define (%process-msg msg ft)
@@ -186,7 +196,10 @@
   (define (fam-task-add-path ft path
                              &optional (proc #f) (events #f) (recursive #f))
     (let* ((path (path->string (path->complete-path path)))
-           (recursive (and recursive (not (is-file-path? path))))
+           (recursive (and recursive
+                           (not (is-file-path? path))
+                           (or (not (number? recursive))
+                               (and (> recursive 0) recursive))))
            (events (if (list? events) events 'all-fam-events))
            (fspec (make-fspec (and (procedure? proc) proc) events recursive)))
       (if (not (fam-task-thread ft))

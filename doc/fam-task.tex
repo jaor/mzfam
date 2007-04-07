@@ -141,22 +141,20 @@ get nervous when the output of \scm{display-event} gets mixed with the
 loop's prompts. But of course, judicious use of MzScheme thread
 synchronisation primitives should be a better option. There's also (at
 least) one more clumsy thing about the above examples: we're
-repeatedly using the \textit{same} event handler. The nice thing about
-writing a manual being the implementor is that, when you notice silly
-thing, you can fix them; \scm{fam-task-create} accepts a default event
-handler as argument, which gets used for monitored paths added without
-one. So you could fix the examples above by replacing the right calls by
+repeatedly using the \textit{same} event handler. No worries:
+\scm{fam-task-create} accepts a default event handler as argument,
+which gets used for monitored paths added without a specific one. That
+is, you could fix the examples above by replacing the right calls by
 something along the lines of:
 \scm{
-
 (define ft (fam-task-create display-event))
 ...
 (fam-task-add-path ft path)
 ...
 }
 
-That's basically it. The next section explores some of the available
-tweaks at your disposal to fine-tune how FAM tasks work.
+That's basically it. The next section explores some of the tweaks at
+your disposal to fine-tune the behaviour of FAM tasks.
 
 \section{Nuts and bolts}
 \label{sec:nuts-bolts}
@@ -175,14 +173,14 @@ FAM-based one, but falls short in a few (hopefully
 minor\numfootnote{If these issues really matter to you and you're on
   GNU/Linux or any other system supporting the FAM daemon, the best
   solution is of course installing the latter and let \MzFam\ use it.
-  I'm told (thank you, Chris) that on Windows there's a similar
-  C-level interface
-  (\url{http://msdn2.microsoft.com/en-us/library/aa365261.aspx}), and
-  one could use PLT's FFI to hook on that (as the \scm{fam} module
-  does with \texttt{libfam})---I don't use Windows, so unless a kind
-  contributor steps up, don't hold your breath on that. If you know of
-  a similar kernel-level subsystem for Mac OS X, just drop me a line
-  and I'll see what can be done.}) respects:
+  I'm told (thank you, Chris) that on Windows there's a
+  \urlh{http://msdn2.microsoft.com/en-us/library/aa365261.aspx}{similar
+    C-level interface}, and one could use PLT's FFI to hook on that
+  (as the \scm{fam} module does with \texttt{libfam})---I don't use
+  Windows, so unless a kind contributor steps up, don't hold your
+  breath on that. If you know of a similar kernel-level subsystem for
+  Mac OS X, just drop me a line and I'll see what can be done.})
+respects:
 \begin{itemize}
 \item Some, let's say, \textit{exotic} events, such as stop/start
   execution (see section~\ref{sec:fam-events} for details) are not
@@ -220,7 +218,7 @@ when you'll want to modify it only if/when file alterations occur.
 \subsection{Path monitoring knobs}
 \label{sec:path-monit-knobs}
 
-As we have see, we tell FAM tasks to monitor a given path using
+As we have seen, we tell FAM tasks to monitor a given path using
 \scm{fam-task-add-path}, which in its simplest form takes a pathname
 and a procedure of arity one as its arguments. The pathname can be
 either absolute or relative: in the latter case, it's resolved with
@@ -233,9 +231,55 @@ pathnames are handled includes:
   spring into existence afterwards, they'll be monitored. A little
   help from you is needed, though: if you mean to monitor a would-be
   directory, the pathname should end with a path separator character
-  (e.g., '/' in Unix systems).
+  (e.g., '/' in Unix systems). This limitation does not apply to files
+  created during (possibly recursive) directory monitoring.
 \end{itemize}
+We have already mentioned that the third argument of
+\scm{fam-task-add-path} is actually optional. In fact, this procedure
+takes not one but \textit{three} optional arguments, namely, an event
+handler, a list of event types, and a recursion flag (use \scm{#f} on
+any of them to make it take its default value).
 
+The list of event types is, well, a list of symbols representing the
+events you're interested in (see section~\ref{sec:fam-events} for the
+complete list of event types). For instance, this invocation requests
+notifications (using the default event handler) for just creation and
+modification events associated with the given path:
+\scm{
+(fam-task-add-path ft path #f '(FAMChanged FAMCreated))
+}
+
+The final optional argument is only using when the monitored path is a
+directory. By default, monitoring a directory results in events
+affecting its contents, but not the contents of any of its
+subdirectories. In short, directory monitoring is \textbf{not}
+recursive by default. Passing \scm{#t} as the last (fifth) argument of
+\scm{fam-task-add-path} modifies this behaviour: any subdirectory
+found (or subsequently created) inside the original path is added to
+list of monitored paths, recursively. For instance,
+calling
+\scm{
+(fam-task-add-path ft "/tmp/foo" handler events #t)
+}
+means that, if a directory \scm{"/tmp/foo/bar/"} is detected during
+monitoring, the system will automatically make the following call for
+you:
+\scm{
+(fam-task-add-path ft "/tmp/foo/bar" handler events #t)
+}
+Alternatively, you can provide an integer \textit{recursion level} as
+the last parameter (where \scm{#f} stands for 0 and \scm{#t} for
+infinite), which will be decremented each time a new subdirectory
+level is entered. That is, if you add \scm{"/tmp/foo"} with
+\scm{
+(fam-task-add-path ft "/tmp/foo" handler events n)
+}
+\scm{"/tmp/foo/bar"} (as well as any other direct child of
+\texttt{foo}) will be added using
+\scm{
+(fam-task-add-path ft "/tmp/foo/bar" handler events (- n 1))
+}
+and yes, you guessed right: zero means the recursion stops.
 
 \section{FAM events}
 \label{sec:fam-events}

@@ -42,7 +42,7 @@ exec mzscheme -r "$0" "$@"
  "xosd-monitor.ss" (current-command-line-arguments)
  (once-each
   (("-n" "--native") "Use native implementation" (use-native-fam? #t))
-  (("-r" "--recursive") "Recursively monitor subdirs" (set! recursive #t)))
+  (("-r" "--recursive") n "Recursive monitor level" (set! recursive (string->number n))))
  (once-any
   (("-b" "--block") "Block on next event" (set! period 0))
   (("-p" "--period") p "Polling with given period" (set! period (string->number p))))
