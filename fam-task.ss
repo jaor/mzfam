@@ -48,8 +48,8 @@
            (only (lib "list.ss" "srfi" "1") delete-duplicates!))
 
   (define fam-use-native?
-    (make-parameter (not (fam-available?))
-                    (lambda (v) (or (not (fam-available?)) v))))
+    (make-parameter (fam-available?)
+                    (lambda (v) (and (fam-available?) v))))
 
   (define-struct fam-task (thread channel fc fspecs period def-proc))
   (define-struct fspec (proc evs rec))
@@ -161,7 +161,7 @@
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
-         (let ((fc (or (and (not (fam-use-native?)) (make-fam))
+         (let ((fc (or (and (fam-use-native?) (make-fam))
                        (make-mz-fam))))
            (and fc
                 (begin (set-fam-task-fc! ft fc)

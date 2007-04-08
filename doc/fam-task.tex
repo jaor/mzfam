@@ -85,7 +85,7 @@ interesting program exercises all those abilities:
   (error "Could not start monitoring task"))
 
 (printf "Monitoring using ~A started~%"
-        (if (fam-use-native?) "scheme FAM" "FAM/Gamin daemon"))
+        (if (fam-use-native?) "FAM/Gamin daemon" "scheme inplementation"))
 
 (define (display-event event)
   (printf "* ~A: ~A (~A)~%"
@@ -129,10 +129,8 @@ that events associated with a suspended path are duly reported upon
 resuming. The parameter \scm{fam-use-native?} tells us whether \MzFam\
 has been able to contact a running FAM/Gamin daemon (and the
 associated C library): if that's the case, \scm{(fam-use-native?)}
-evaluates to \scm{#f}; otherwise the fall-back, pure-scheme
-implementation is used\numfootnote{Some may find my use of ``native''
-  in this context a bit misleading, but I like to think of Scheme as
-  my native environment. So, please, humour me.}.
+evaluates to \scm{#t}; otherwise the fall-back, pure-scheme
+implementation is used.
 
 Incidentally, the monitoring program above has the dubious virtue of
 exposing a situation where you may be tempted to use one of the
@@ -166,21 +164,20 @@ As mentioned, \scm{fam-task-create} will do its very best to contact a
 running FAM or Gamin daemon and only when that attempt fails will fall
 back to using the pure-Scheme monitor. Nevertheless, you can instruct
 \MzFam\ to use the scheme implementation (provided by the \scm{fam-mz}
-module) no matter what with \scm{(fam-use-native? #t)}, either in a
-line of its own or as part of a \scm{parameterize} form. The native
+module) no matter what with \scm{(fam-use-native? #f)}, either in a
+line of its own or as part of a \scm{parameterize} form. The Scheme
 implementation tries hard to provide the same functionality as the
-FAM-based one, but falls short in a few (hopefully
-minor\numfootnote{If these issues really matter to you and you're on
-  GNU/Linux or any other system supporting the FAM daemon, the best
-  solution is of course installing the latter and let \MzFam\ use it.
-  I'm told (thank you, Chris) that on Windows there's a
+native one, but falls short in a few (hopefully minor\numfootnote{If
+  these issues really matter to you and you're on GNU/Linux or any
+  other system supporting the FAM daemon, the best solution is of
+  course installing the latter and let \MzFam\ use it. I'm told (thank
+  you, Chris) that on Windows there's a
   \urlh{http://msdn2.microsoft.com/en-us/library/aa365261.aspx}{similar
     C-level interface}, and one could use PLT's FFI to hook on that
   (as the \scm{fam} module does with \texttt{libfam})---I don't use
   Windows, so unless a kind contributor steps up, don't hold your
-  breath on that. If you know of a similar kernel-level subsystem for
-  Mac OS X, just drop me a line and I'll see what can be done.})
-respects:
+  breath on that. A similar kernel-level subsystem for Mac OS X
+  exists, and work is underway for future versions of \MzFam.}) respects:
 \begin{itemize}
 \item Some, let's say, \textit{exotic} events, such as stop/start
   execution (see section~\ref{sec:fam-events} for details) are not
@@ -291,16 +288,17 @@ lists all possible type symbols together with their meaning.
 
 \begin{tabular}{|l|l|}
   \hline
+  \multicolumn{2}{c}{\textit{Events reported in all platforms}}\\\hline
   \scm{fam-event-found} & File detected at monitoring start\\
   \scm{fam-event-eol} & End of file detected list\\
   \scm{fam-event-modified} & File or directory modified\\
   \scm{fam-event-created} & File or directory created inside a monitored
   folder\\
   \scm{fam-event-deleted} & File or directory deleted\\
-  \scm{fam-event-moved} & File or directory moved (FAM)\\
-  \scm{fam-event-acknowledge} & \? (FAM)\\
-  \scm{fam-event-exec-start} & Monitored program started execution
-  (FAM)\\
+  \multicolumn{2}{c}{\textit{Events reported only by FAM/Gamin}}\\\hline
+  \scm{fam-event-moved} & File or directory moved \\
+  \scm{fam-event-acknowledge} & ? \\
+  \scm{fam-event-exec-start} & Monitored program started execution\\
   \scm{fam-event-exec-stop} & Monitored program ended execution
 \end{tabular}
 

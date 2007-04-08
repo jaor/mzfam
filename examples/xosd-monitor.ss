@@ -1,5 +1,5 @@
 #!/bin/sh
-#|
+#
 exec mzscheme -r "$0" "$@"
 |#
 
@@ -29,7 +29,8 @@ exec mzscheme -r "$0" "$@"
                      (fam-event-path event)
                      (fam-event-type->string (fam-event-type event))
                      (fam-event-monitored-path event)
-                     (date->string (seconds->date (fam-event-timestamp event)) #t))))
+                     (date->string (seconds->date (fam-event-timestamp event))
+                                   #t))))
     (xosd-display-string xosd-inst msg)
     (sleep 2)
     (xosd-hide xosd-inst)))
@@ -41,11 +42,13 @@ exec mzscheme -r "$0" "$@"
 (command-line
  "xosd-monitor.ss" (current-command-line-arguments)
  (once-each
-  (("-n" "--native") "Use native implementation" (use-native-fam? #t))
-  (("-r" "--recursive") n "Recursive monitor level" (set! recursive (string->number n))))
+  (("-s" "--scheme") "Use Scheme implementation" (fam-use-native? #f))
+  (("-r" "--recursive") n "Recursive monitor level"
+   (set! recursive (string->number n))))
  (once-any
   (("-b" "--block") "Block on next event" (set! period 0))
-  (("-p" "--period") p "Polling with given period" (set! period (string->number p))))
+  (("-p" "--period") p "Polling with given period"
+   (set! period (string->number p))))
  (args files
        (when (null? files) (error "No monitored files/directories"))
        (set! mfiles files)))

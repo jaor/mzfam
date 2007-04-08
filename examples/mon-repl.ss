@@ -1,5 +1,5 @@
 #!/bin/sh
-#|
+#
 exec mzscheme -r "$0" "$@"
 |#
 
@@ -14,11 +14,12 @@ exec mzscheme -r "$0" "$@"
 (command-line
  "xosd-monitor.ss" (current-command-line-arguments)
  (once-each
-  (("-n" "--native") "Use native implementation" (fam-use-native? #t))
+  (("-s" "--scheme") "Use scheme implementation" (fam-use-native? #f))
   (("-r" "--recursive") "Recursively monitor subdirs" (set! recursive #t)))
  (once-any
   (("-b" "--block") "Block on next event" (set! period 0))
-  (("-p" "--period") p "Polling with given period" (set! period (string->number p)))))
+  (("-p" "--period") p "Polling with given period"
+   (set! period (string->number p)))))
 
 (define ft (fam-task-create period))
 
