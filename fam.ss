@@ -23,16 +23,16 @@
   (define (fam-available?) (if libfam #t #f))
 
   (define _FAMCodes
-    (_enum '(FAMNull = 0
-             FAMChanged = 1
-             FAMDeleted = 2
-             FAMStartExecuting = 3
-             FAMStopExecuting = 4
-             FAMCreated = 5
-             FAMMoved = 6
-             FAMAcknowledge = 7
-             FAMExists = 8
-             FAMEndExist = 9)))
+    (_enum '(fam-event-null = 0
+             fam-event-modified = 1
+             fam-event-deleted = 2
+             fam-event-exec-start = 3
+             fam-event-exec-stop = 4
+             fam-event-created = 5
+             fam-event-moved = 6
+             fam-event-acknowledge = 7
+             fam-event-found = 8
+             fam-event-eol = 9)))
 
   (define *max-path-len* 4096)
   (define _Buffer
@@ -94,9 +94,9 @@
                   (ffun (if is-file? %monitor-file %monitor-directory)))
               (and (= 0 (ffun conn pathname req pathname))
                    (begin
-                     (set-fam-connection-files! fc
-                                                (cons (cons pathname req)
-                                                      (fam-connection-files fc)))
+                     (set-fam-connection-files!
+                      fc
+                      (cons (cons pathname req) (fam-connection-files fc)))
                      #t)))))))
 
   (defmethod (fam-monitored-paths (fc <fam-connection>))
@@ -120,7 +120,8 @@
        (defmethod (exp-name (fc <fam-connection>) file)
          (define ffun
            (%get-ffi-obj ffi-name libfam
-                         (_fun _FAMConnection-pointer _FAMRequest-pointer -> _int)))
+                         (_fun _FAMConnection-pointer _FAMRequest-pointer
+                               -> _int)))
          (let ((conn (fam-connection-conn fc))
                (req (%path->req fc file)))
            (and ffun req (= 0 (ffun conn req))))))))

@@ -246,7 +246,7 @@ complete list of event types). For instance, this invocation requests
 notifications (using the default event handler) for just creation and
 modification events associated with the given path:
 \scm{
-(fam-task-add-path ft path #f '(FAMChanged FAMCreated))
+(fam-task-add-path ft path #f '(fam-event-modified fam-event-created))
 }
 
 The final optional argument is only using when the monitored path is a
@@ -284,7 +284,25 @@ and yes, you guessed right: zero means the recursion stops.
 \section{FAM events}
 \label{sec:fam-events}
 
+FAM events come with a type (a symbol) attached describing the kind of
+alteration a given file has suffered (this file's path can differ from
+the monitored one when the latter is a directory). The next table
+lists all possible type symbols together with their meaning.
 
+\begin{tabular}{|l|l|}
+  \hline
+  \scm{fam-event-found} & File detected at monitoring start\\
+  \scm{fam-event-eol} & End of file detected list\\
+  \scm{fam-event-modified} & File or directory modified\\
+  \scm{fam-event-created} & File or directory created inside a monitored
+  folder\\
+  \scm{fam-event-deleted} & File or directory deleted\\
+  \scm{fam-event-moved} & File or directory moved (FAM)\\
+  \scm{fam-event-acknowledge} & \? (FAM)\\
+  \scm{fam-event-exec-start} & Monitored program started execution
+  (FAM)\\
+  \scm{fam-event-exec-stop} & Monitored program ended execution
+\end{tabular}
 
 
 %%% Local Variables:

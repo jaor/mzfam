@@ -35,7 +35,7 @@
   (defclass <monitored-file> ()
     path
     (mod-time :initvalue 0)
-    (last-event :initvalue 'FAMNew)
+    (last-event :initvalue 'fam-event-new)
     (enabled? :initvalue #t)
     (events :initvalue '())
    :autoaccessors #t :autoinitargs #t)
@@ -48,7 +48,7 @@
   (defmethod (%next-event (mc <monitored-child>))
     (let ((event (call-next-method)))
       (and event
-           (not (eq? (fam-event-type event) 'FAMEndExist))
+           (not (eq? (fam-event-type event) 'fam-event-eol))
            event)))
 
   (defmethod (%next-event (mf <monitored-file>))
@@ -60,19 +60,21 @@
                 (lev (monitored-file-last-event mf))
                 (nev (if (not fx?)
                          (case lev
-                           ((FAMNew FAMDeleted) 'FAMNull)
-                           ((FAMNull) (if (= 0 omt) 'FAMNull 'FAMDeleted))
-                           (else 'FAMDeleted))
+                           ((fam-event-new fam-event-deleted) 'fam-event-null)
+                           ((fam-event-null) (if (= 0 omt)
+                                          'fam-event-null
+                                          'fam-event-deleted))
+                           (else 'fam-event-deleted))
                          (case lev
-                           ((FAMNew) 'FAMExists)
-                           ((FAMExists) 'FAMEndExist)
-                           ((FAMAdded) 'FAMCreated)
-                           (else (cond ((= 0 omt) 'FAMCreated)
-                                       ((= mt omt) 'FAMNull)
-                                       (else 'FAMChanged)))))))
+                           ((fam-event-new) 'fam-event-found)
+                           ((fam-event-found) 'fam-event-eol)
+                           ((fam-event-added) 'fam-event-created)
+                           (else (cond ((= 0 omt) 'fam-event-created)
+                                       ((= mt omt) 'fam-event-null)
+                                       (else 'fam-event-modified)))))))
            (unless (eq? lev nev) (set-monitored-file-last-event! mf nev))
            (unless (= omt mt) (set-monitored-file-mod-time! mf mt))
-           (and (not (eq? nev 'FAMNull))
+           (and (not (eq? nev 'fam-event-null))
                 (make <fam-event> :path path
                                   :type nev
                                   :monitored-path path
@@ -109,8 +111,8 @@
                                               :path fn
                                               :mod-time mt
                                               :last-event (if init
-                                                              'FAMNew
-                                                              'FAMAdded))
+                                                              'fam-event-new
+                                                              'fam-event-added))
                                              acc))))
                          (if (eq? type 'dir) (values acc #f) acc)))
                      '())))
@@ -126,13 +128,15 @@
           (let ((nevents (mappend! %pending-events
                                    (monitored-folder-children mf)))
                 (mfolder (monitored-file-path mf)))
-            (for-each (lambda (event) (slot-set! event 'monitored-path mfolder)) nevents)
-            (if (eq? (monitored-file-last-event mf) 'FAMNew)
+            (for-each (lambda (event)
+                        (slot-set! event 'monitored-path mfolder))
+                      nevents)
+            (if (eq? (monitored-file-last-event mf) 'fam-event-new)
                 (let ((end (make <fam-event> :path mfolder
                                              :monitored-path mfolder
-                                             :type 'FAMEndExist
+                                             :type 'fam-event-eol
                                              :timestamp (current-seconds))))
-                  (set-monitored-file-last-event! mf 'FAMNull)
+                  (set-monitored-file-last-event! mf 'fam-event-null)
                   (append nevents (list end)))
                 nevents)))
         '()))
@@ -174,7 +178,8 @@
   (defmethod (fam-cancel-path-monitoring (fc <mz-fam>) path)
     (set-mz-fam-files! fc (remove path
                                   (mz-fam-files fc)
-                                  (lambda (mt) (string=? (monitored-file-path mt) path)))))
+                                  (lambda (mt)
+                                    (string=? (monitored-file-path mt) path)))))
 
   (defmethod (fam-any-event? (fc <mz-fam>))
     (when (null? (mz-fam-events fc))

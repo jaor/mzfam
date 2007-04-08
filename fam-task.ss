@@ -84,7 +84,7 @@
               (when (%accepts-type fs type)
                 ((or (fspec-proc fs) (fam-task-def-proc ft)) event))
               (when (and (%fspec-rec? fs)
-                         (or (eq? type 'FAMExists) (eq? type 'FAMCreated))
+                         (or (eq? type 'fam-event-found) (eq? type 'fam-event-created))
                          (not (string=? path mp))
                          (not (is-file-path? path)))
                 (fam-monitor-path fc path)
