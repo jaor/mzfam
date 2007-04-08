@@ -47,8 +47,9 @@
            (lib "async-channel.ss")
            (only (lib "list.ss" "srfi" "1") delete-duplicates!))
 
-  (define fam-use-native? (make-parameter (not (fam-available?))
-                                          (lambda (v) (or (not (fam-available?)) v))))
+  (define fam-use-native?
+    (make-parameter (not (fam-available?))
+                    (lambda (v) (or (not (fam-available?)) v))))
 
   (define-struct fam-task (thread channel fc fspecs period def-proc))
   (define-struct fspec (proc evs rec))
@@ -120,7 +121,8 @@
     (define (eqev? a b)
       (and (eq? (fam-event-type a) (fam-event-type b))
            (string=? (fam-event-path a) (fam-event-path b))
-           (string=? (fam-event-monitored-path a) (fam-event-monitored-path b))))
+           (string=? (fam-event-monitored-path a)
+                     (fam-event-monitored-path b))))
     (delete-duplicates! events eqev?))
 
   (define (%periodic-loop ft k)
@@ -142,9 +144,8 @@
       (hash-table-for-each (fam-task-fspecs ft)
                            (lambda (path fspec)
                              (fam-monitor-path (fam-task-fc ft) path)))
-      (call/cc
-       (lambda (k)
-         ((if (> (fam-task-period ft) 0) %periodic-loop %blocking-loop) ft k)))))
+      (let/cc k
+       ((if (> (fam-task-period ft) 0) %periodic-loop %blocking-loop) ft k))))
 
   (define fam-task-create
     (case-lambda
@@ -152,11 +153,11 @@
       ((x) (cond ((number? x) (fam-task-create (lambda (e) #t) x))
                  (else (fam-task-create x 0.01))))
       ((x y) (make-fam-task #f
-                               (make-async-channel)
-                               #f
-                               (make-hash-table 'equal)
-                               (if (number? y) y x)
-                               (if (number? y) x y)))))
+                            (make-async-channel)
+                            #f
+                            (make-hash-table 'equal)
+                            (if (number? y) y x)
+                            (if (number? y) x y)))))
 
   (define (fam-task-start ft)
     (and (not (fam-task-thread ft))
