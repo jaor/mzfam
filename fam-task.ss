@@ -38,6 +38,7 @@
            fam-event-monitored-path
            fam-event-timestamp
            fam-event-type->string
+           fam-make-event-stream
 
            fam-use-native?)
 

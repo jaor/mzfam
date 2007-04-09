@@ -137,18 +137,17 @@ exposing a situation where you may be tempted to use one of the
 low-level modules directly: you just need to play with it a little and
 get nervous when the output of \scm{display-event} gets mixed with the
 loop's prompts. But of course, judicious use of MzScheme thread
-synchronisation primitives should be a better option. There's also (at
-least) one more clumsy thing about the above examples: we're
-repeatedly using the \textit{same} event handler. No worries:
-\scm{fam-task-create} accepts a default event handler as argument,
-which gets used for monitored paths added without a specific one. That
-is, you could fix the examples above by replacing the right calls by
-something along the lines of:
-\scm{
-(define ft (fam-task-create display-event))
-...
-(fam-task-add-path ft path)
-...
+synchronisation primitives should be a better option, or using the
+simple event stream described in section~\ref{sec:event-streams}.
+
+There's also (at least) one more clumsy thing about the above
+examples: we're repeatedly using the \textit{same} event handler. No
+worries: \scm{fam-task-create} accepts a default event handler as
+argument, which gets used for monitored paths added without a specific
+one. That is, you could fix the examples above by replacing the right
+calls by something along the lines of:
+\scm{ (define ft
+  (fam-task-create display-event)) ... (fam-task-add-path ft path) ...
 }
 
 That's basically it. The next section explores some of the tweaks at
@@ -281,6 +280,9 @@ and yes, you guessed right: zero means the recursion stops.
 \section{FAM events}
 \label{sec:fam-events}
 
+\subsection{Event types}
+\label{sec:event-types}
+
 FAM events come with a type (a symbol) attached describing the kind of
 alteration a given file has suffered (this file's path can differ from
 the monitored one when the latter is a directory). The next table
@@ -298,9 +300,9 @@ lists all possible type symbols together with their meaning.
   \multicolumn{2}{c}{\textit{Events reported only by FAM/Gamin}}\\\hline
   \scm{fam-event-moved} & File or directory moved \\
   \scm{fam-event-exec-start} & Monitored program started execution\\
-  \scm{fam-event-exec-stop} & Monitored program ended execution
+  \scm{fam-event-exec-stop} & Monitored program ended execution\\
   \scm{fam-event-acknowledge} & Generated right after a cancellation
-  request is satisfied \\
+  request is satisfied
 \end{tabular}
 
 I think all events are self-explanatory, with maybe the exception of
@@ -310,6 +312,39 @@ When the request is that a directory be monitored, \MzFam\ generates a
 \scm{fam-event-found} event for that directory (if it exists) and
 every file contained in that directory. After generating all 'found'
 events for the directory, a single \scm{fam-event-eol} is issued.
+
+\subsection{Event streams}
+\label{sec:event-streams}
+
+For simple (or not so simple) case, your program may be interested in
+playing the role of a sequential consumer of events produced by a FAM
+task. That is to say, you may be interested in accessing available
+events synchronously, avoiding being upset by asynchronous callbacks.
+With those cases in mind (and just because it's really easy to
+implement\numfootnote{Yes, libraries should be designed not by piling
+  feature on top of feature, I know, but this one was just a matter of
+  using an asyncronous channel. Too easy to resist.}), \scm{fam-task}
+exports a procedure, \scm{fam-make-event-stream} which creates an
+\textit{event stream}. You can pass that stream to
+\scm{fam-task-add-path} or \scm{fam-task-create} as the event handler,
+and use it yourself (calling it without arguments) to perform
+non-blocking read-event operations. Finally, calling the object
+returned by \scm{fam-make-event-stream} with \scm{#t} as argument you
+block until a new event is available. Here's an incomplete code
+snippet that shows how one uses an event stream:
+\scm{
+(define es (fam-make-event-stream))
+(define ft (fam-task-create es))
+
+(fam-task-add-path ft "/tmp")
+
+(let loop ((next-event (es #t))) ;; this call is blocking
+  (printf "Event: ~A" (fam-event-type next-event))
+  (loop (es #t))) ;; ditto
+}
+Surely you'll come up with some more imaginative uses of event
+streams. The useful bit here is that you can go on with your business,
+and consume pending events only as and when needed.
 
 %%% Local Variables:
 %%% mode: latex

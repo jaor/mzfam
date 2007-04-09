@@ -11,16 +11,19 @@ monitor and react to filesystem changes. It exports a high-level
 interface consisting of monitoring tasks that run as independent
 threads and invoke callback procedures each time a file alteration is
 detected. These high-level tasks (provided by the module
-\scm{fam-task}) are implemented using either Linux's FAM/Gamin monitor
-or, in systems (like Windows) where it is not available, a pure Scheme
-fall-back implementation. This low-level functionality is in turn
-provided by two modules (\scm{fam} and \scm{fam-mz}, respectively)
-that share the generic interface defined by a third one,
+\scm{fam-task}) are implemented using either Linux's
+\urlh{http://oss.sgi.com/projects/fam/}{FAM}/\urlh{http://www.gnome.org/~veillard/gamin/}{Gamin}
+monitors or, in systems (like Windows) where it is not available, a
+pure Scheme fall-back implementation. This low-level functionality is
+in turn provided by two modules (\scm{fam} and \scm{fam-mz},
+respectively) that share the generic interface defined by a third one,
 \scm{fam-base}. You may use \scm{fam} or \scm{fam-mz} directly
 (bypassing the high-level interface) if you find \scm{fam-task} not
 suitable for your needs. The generic functions in \scm{fam-base} are,
 basically, one-to-one counterparts of those provided by the
-\texttt{libfam} C library.
+\texttt{libfam} C library\numfootnote{See also
+  \urlh{http://techpubs.sgi.com/library/tpl/cgi-bin/getdoc.cgi/0650/bks/SGI_Developer/books/IIDsktp_IG/sgi_html/ch08.html#LE33384-PARENT}{this
+    tutorial on the FAM C library} for further, unneeded details.}.
 
 Using FAM tasks is quite straightforward. So, the impatient among you
 may prefer to take a look at the procedures exported by

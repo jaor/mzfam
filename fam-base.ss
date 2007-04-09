@@ -25,6 +25,7 @@
 (module fam-base (lib "swindle.ss" "swindle")
 
   (provide (all-from (lib "swindle.ss" "swindle")))
+  (require (lib "async-channel.ss"))
 
   (provide fam-monitor-path
            fam-monitored-paths
@@ -41,6 +42,7 @@
            fam-event-monitored-path
            fam-event-type
            fam-event-timestamp
+           fam-make-event-stream
            <fam-event>)
 
   (defgeneric (fam-release fc))
@@ -69,6 +71,17 @@
                     (fam-event-acknowledge . "Acknowledge")))
     (cond ((assoc type descs) => cdr)
           (else (format "Unknown type (~A)" type))))
+  
+  (define fam-make-event-stream
+    (lambda ()
+      (let ((channel (make-async-channel)))
+        (define dispatch
+          (case-lambda
+            (() (async-channel-try-get channel))
+            ((x) (cond ((fam-event? x) (async-channel-put channel x))
+                       ((eq? x #t) (async-channel-get channel))
+                       (else (async-channel-try-get channel))))))
+        dispatch)))
 )
 
 
