@@ -1,5 +1,5 @@
 #!/bin/sh
-#
+#|
 exec mzscheme -r "$0" "$@"
 |#
 
@@ -36,7 +36,6 @@ exec mzscheme -r "$0" "$@"
     (xosd-hide xosd-inst)))
 
 (define mfiles '())
-(define period 0.01)
 (define recursive #f)
 
 (command-line
@@ -46,14 +45,14 @@ exec mzscheme -r "$0" "$@"
   (("-r" "--recursive") n "Recursive monitor level"
    (set! recursive (string->number n))))
  (once-any
-  (("-b" "--block") "Block on next event" (set! period 0))
+  (("-b" "--block") "Block on next event" (fam-task-default-period 0))
   (("-p" "--period") p "Polling with given period"
-   (set! period (string->number p))))
+   (fam-task-default-period (string->number p))))
  (args files
        (when (null? files) (error "No monitored files/directories"))
        (set! mfiles files)))
 
-(define fam-inst (fam-task-create display-event period))
+(define fam-inst (fam-task-create display-event))
 
 (for-each (lambda (path)
             (fam-task-add-path fam-inst path #f #f recursive))

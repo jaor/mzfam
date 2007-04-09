@@ -8,7 +8,6 @@ exec mzscheme -r "$0" "$@"
 (require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 0))
          (lib "cmdline.ss"))
 
-(define period 0.01)
 (define recursive #f)
 
 (command-line
@@ -17,12 +16,12 @@ exec mzscheme -r "$0" "$@"
   (("-s" "--scheme") "Use scheme implementation" (fam-use-native? #f))
   (("-r" "--recursive") "Recursively monitor subdirs" (set! recursive #t)))
  (once-any
-  (("-b" "--block") "Block on next event" (set! period 0))
+  (("-b" "--block") "Block on next event" (fam-task-default-period 0))
   (("-p" "--period") p "Polling with given period"
-   (set! period (string->number p)))))
+   (fam-task-default-period (string->number p)))))
 
 (define es (fam-make-event-stream))
-(define ft (fam-task-create period es))
+(define ft (fam-task-create es))
 
 (unless (fam-task-start ft)
   (error "Could not start monitoring task"))
