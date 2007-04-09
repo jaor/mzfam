@@ -316,7 +316,7 @@ events for the directory, a single \scm{fam-event-eol} is issued.
 \subsection{Event streams}
 \label{sec:event-streams}
 
-For simple (or not so simple) case, your program may be interested in
+For simple (or not so simple) cases, your program may be interested in
 playing the role of a sequential consumer of events produced by a FAM
 task. That is to say, you may be interested in accessing available
 events synchronously, avoiding being upset by asynchronous callbacks.
@@ -340,9 +340,10 @@ snippet that shows how one uses an event stream:
 
 (let loop ((next-event (es #t))) ;; this call is blocking
   (printf "Event: ~A" (fam-event-type next-event))
-  (loop (es #t))) ;; ditto
+  (let loop () (if (es) (loop))) ;; consume events without blocking
+  (loop (es #t))) ;; wait for next one
 }
-Surely you'll come up with some more imaginative uses of event
+Surely, you'll come up with some more imaginative uses of event
 streams. The useful bit here is that you can go on with your business,
 and consume pending events only as and when needed.
 

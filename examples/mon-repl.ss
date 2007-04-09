@@ -1,5 +1,5 @@
 #!/bin/sh
-#
+#|
 exec mzscheme -r "$0" "$@"
 |#
 
@@ -21,7 +21,8 @@ exec mzscheme -r "$0" "$@"
   (("-p" "--period") p "Polling with given period"
    (set! period (string->number p)))))
 
-(define ft (fam-task-create period))
+(define es (fam-make-event-stream))
+(define ft (fam-task-create period es))
 
 (unless (fam-task-start ft)
   (error "Could not start monitoring task"))
@@ -35,8 +36,14 @@ exec mzscheme -r "$0" "$@"
           (fam-event-type->string (fam-event-type event))
           (fam-event-monitored-path event)))
 
+(define (show-events es)
+  (let loop ((ev (es)))
+    (when ev
+      (display-event ev)
+      (loop (es)))))
+
 (define (read-op)
-  (printf "(a)dd, (r)emove, (s)uspend, r(e)sume, (p)rint, (q)uit: ")
+  (printf "(a)dd, (r)emove, (s)uspend, r(e)sume, (p)rint, e(v)ents, (q)uit: ")
   (let ((op (read))) (read-line) op))
 
 (define (read-path) (printf "Path: ") (read-line))
@@ -44,10 +51,11 @@ exec mzscheme -r "$0" "$@"
 (let loop ((op (read-op)))
   (if (case op
         ((p) (display (fam-task-monitored-paths ft)) (newline) #t)
-        ((a) (fam-task-add-path ft (read-path) display-event))
+        ((a) (fam-task-add-path ft (read-path)))
         ((r) (fam-task-remove-path ft (read-path)))
         ((s) (fam-task-suspend-monitoring ft (read-path)))
         ((e) (fam-task-resume-monitoring ft (read-path)))
+        ((v) (show-events es))
         (else #f))
       (display "OK")
       (display "KO"))
