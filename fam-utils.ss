@@ -24,7 +24,8 @@
 
 (module fam-utils mzscheme
   (provide is-file-path?
-           last-modification-time)
+           last-modification-time
+           absolute-pathname)
 
   (require (lib "file.ss"))
 
@@ -40,6 +41,8 @@
         (file-or-directory-modify-seconds pathname)
         (current-seconds)))
 
+  (define (absolute-pathname pathname)
+    (path->string (path->complete-path pathname)))
 
 )
 

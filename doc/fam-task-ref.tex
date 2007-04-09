@@ -1,9 +1,115 @@
 
-\chapter{\scm{fam-task} reference}
+\chapter{fam-task reference}
 \label{cha:scmf-task-refer}
 
 As promised, here's a list of all procedures provided by
 \scm{fam-task}, together with their (informal) contracts.
+
+\begin{itemize}
+\item\scm{(fam-task-create {period event-handler})} creates a new
+  \scm{fam-task} instance. The two optional arguments can be provided
+  in any order; \scm{period} denotes the time (in seconds) the polling
+  thread sleeps (default value is 0.1, given by the parameter
+  \scm{fam-task-default-period}), while \scm{event-handler} (a
+  procedure of arity one) is the default event handler. Returns a new
+  \scm{fam-task} or \scm{#f} in case of error. If the period is 0 and
+  the native implementation is used, the task will block (after
+  started) while there are no events.
+\item\scm{(fam-task-start fam-task)} starts a given task, evaluating
+  to a boolean indicating whether the operation is successful. The
+  value of the parameter \scm{fam-use-native?} is used to decide
+  whether the FAM- or the Scheme-based monitoring implementation is
+  used.
+\item\scm{(fam-task-join fam-task)} calls \scm{fam-task-start} and, if
+  successful, waits on the monitoring thread to exit.
+\item\scm{(fam-task-stop fam-task)} sends a message to a running FAM
+  task, causing it exit the monitoring thread. Thus, a certain delay
+  until the task actually exits is to be expected (especially for
+  blocking tasks). Returns a boolean success flag.
+\item\scm{(fam-task-running? fam-task)} check whether a monitoring
+  task's thread is running.
+\item\scm{(fam-task-add-path fam-task path [handler] [evlist]
+    [rec-level])} adds given \scm{path} to the list of monitored ones.
+  It takes the following optional arguments (use \scm{#f} to denote
+  their default value):
+  \begin{itemize}
+  \item \scm{handler} (default is \scm{#t}, indicating the handler
+    provided when creating \scm{fam-task}) must be a procedure of
+    arity 1 (it will be called with an event as its argument).
+  \item \scm{evlist} is a list of symbols corresponding to the types
+    of events that should be reported (see
+    section~\ref{sec:event-types} for possible values). If \scm{#f}
+    (the default) all event types are reported.
+  \item \scm{rec-level} is used only when \scm{path} denotes a
+    directory, and indicates the level for recursively monitoring
+    subdirectories of \scm{path}. 0 or \scm{#f} (the default) denote
+    no recursion, and \scm{#t} always recurse. Otherwise,
+    subdirectories inherit a recursion level which is one less than
+    their parent (see also discussion in
+    section~\ref{sec:path-monit-knobs}).
+  \end{itemize}
+  Returns a boolean success flag.
+\item\scm{(fam-task-remove-path fam-task path)} removes \scm{path}
+  from the list of monitored paths. \scm{path} must correspond to a
+  pathname added using \scm{fam-task-add-path}\numfootnote{That is,
+    this function will \textbf{not} work for paths of regular files
+    inside monitored directories, nor for subdirectories when
+    recursive monitoring is off. The same caveat applies to
+    suspend/resume below.}. Returns a boolean success flag.
+\item\scm{(fam-task-suspend-monitoring fam-task path)} temporarily
+  delays event notifications for the given path (a previous argument
+  to \scm{fam-task-add-path}, with the same caveats as
+  \scm{fam-task-remove-path}). When monitoring is resumed, events
+  collected during the lapse are reported. Returns a boolean success
+  flag.
+\item\scm{(fam-task-resume-monitoring fam-task path)} resumes a
+  previously suspended path. Returns a boolean success flag.
+\item\scm{(fam-task-monitored-paths fam-task)} evaluates to a list of
+  strings, corresponding to the currently monitored paths (including
+  suspended ones).
+\item\scm{fam-task-default-period} is a parameter providing the default
+  sleep period (in seconds; non-integer values allowed) for
+  \scm{fam-task-create} (initially set to 0.1 secs).
+\end{itemize}
+Event handlers get passed an argument of type \scm{fam-event}, an
+opaque structure whose contents can be inspected with the following
+selectors:
+\begin{itemize}
+\item\scm{(fam-event-path fam-event)} provides the file that has been
+  altered (a string representing an absolute pathname).
+\item\scm{(fam-event-type fam-event)} returns one of the symbols listed in
+  section~\ref{sec:event-types}.
+\item\scm{(fam-event-monitored-path fam-event)} returns the path being
+  monitored (a string representing an absolute pathname). This may be
+  different from the value returned by \scm{fam-event-path} when
+  monitoring directories.
+\item\scm{(fam-event-timestamp fam-event)} evaluates to the last
+  modification time of the file given by \scm{fam-event-path}.
+\item\scm{(fam-event-type->string type)} returns a string with a
+  boilerplate description (in English) of the given event type.
+\item\scm{(fam-make-event-stream)} creates a procedure that doubles as
+  an event handler (to be uses as an argument to \scm{fam-task-create}
+  or \scm{fam-task-add-path}) and as a synchronous event reader. When
+  called with an event as argument (usually by the framework), the
+  event is queued. Events can be retrieved by calling the procedure
+  either without arguments (non-blocking call) or \scm{#t} (blocks
+  until events are available in the queue). See
+  section~\ref{sec:event-streams} for usage examples.
+\end{itemize}
+Finally, you can control to some extend the underlying machinery used
+by FAM tasks to detect events:
+\begin{itemize}
+\item\scm{fam-use-native?} is a boolean parameter that controls the
+  underlying implementation used by FAM tasks. Its initial value is
+  set to \scm{#t} if a FAM/Gamin process can be connected. Otherwise,
+  its value is \scm{#f}, meaning that the fall-back pure-scheme
+  implementation is in use (see section~\ref{sec:fam-task-flavours}
+  for caveats). Alternative, you can set it yourself to force a
+  concrete behaviour. Note that this parameter is used when the task
+  starts; thus, if you are using it in a \scm{parameterize} form, this
+  form should wrap your calls to either \scm{fam-task-start} of
+  \scm{fam-task-join}.
+\end{itemize}
 
 
 %%% Local Variables:

@@ -32,6 +32,7 @@
            fam-task-suspend-monitoring
            fam-task-resume-monitoring
            fam-task-monitored-paths
+           fam-task-default-period
 
            fam-event-path
            fam-event-type
@@ -51,6 +52,9 @@
   (define fam-use-native?
     (make-parameter (fam-available?)
                     (lambda (v) (and (fam-available?) v))))
+
+  (define fam-task-default-period
+    (make-parameter 0.1 (lambda (v) (and (number? v) v))))
 
   (define-struct fam-task (thread channel fc fspecs period def-proc))
   (define-struct fspec (proc evs rec))
@@ -85,7 +89,8 @@
               (when (%accepts-type fs type)
                 ((or (fspec-proc fs) (fam-task-def-proc ft)) event))
               (when (and (%fspec-rec? fs)
-                         (or (eq? type 'fam-event-found) (eq? type 'fam-event-created))
+                         (or (eq? type 'fam-event-found)
+                             (eq? type 'fam-event-created))
                          (not (string=? path mp))
                          (not (is-file-path? path)))
                 (fam-monitor-path fc path)
@@ -154,9 +159,9 @@
 
   (define fam-task-create
     (case-lambda
-      (() (fam-task-create 0.01))
+      (() (fam-task-create (fam-task-default-period)))
       ((x) (cond ((number? x) (fam-task-create (lambda (e) #t) x))
-                 (else (fam-task-create x 0.01))))
+                 (else (fam-task-create x (fam-task-default-period)))))
       ((x y) (make-fam-task #f
                             (make-async-channel)
                             #f
@@ -194,14 +199,14 @@
       (thread-wait (fam-task-thread ft))))
 
   (define (fam-task-suspend-monitoring ft path)
-    (%send-msg ft (cons 'suspend path)))
+    (%send-msg ft (cons 'suspend (absolute-pathname path))))
 
   (define (fam-task-resume-monitoring ft path)
-    (%send-msg ft (cons 'resume path)))
+    (%send-msg ft (cons 'resume (absolute-pathname path))))
 
   (define (fam-task-add-path ft path
                              &optional (proc #f) (events #f) (recursive #f))
-    (let* ((path (path->string (path->complete-path path)))
+    (let* ((path (absolute-pathname path))
            (recursive (and recursive
                            (not (is-file-path? path))
                            (or (not (number? recursive))
@@ -213,7 +218,7 @@
           (%send-msg ft (list 'add path fspec)))))
 
   (define (fam-task-remove-path ft path)
-    (%send-msg ft (cons 'remove path)))
+    (%send-msg ft (cons 'remove (absolute-pathname path))))
 
 )
 

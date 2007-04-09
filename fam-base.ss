@@ -71,17 +71,16 @@
                     (fam-event-acknowledge . "Acknowledge")))
     (cond ((assoc type descs) => cdr)
           (else (format "Unknown type (~A)" type))))
-  
-  (define fam-make-event-stream
-    (lambda ()
-      (let ((channel (make-async-channel)))
-        (define dispatch
-          (case-lambda
-            (() (async-channel-try-get channel))
-            ((x) (cond ((fam-event? x) (async-channel-put channel x))
-                       ((eq? x #t) (async-channel-get channel))
-                       (else (async-channel-try-get channel))))))
-        dispatch)))
+
+  (define (fam-make-event-stream)
+    (let ((channel (make-async-channel)))
+      (define dispatch
+        (case-lambda
+          (() (async-channel-try-get channel))
+          ((x) (cond ((fam-event? x) (async-channel-put channel x))
+                     ((eq? x #t) (async-channel-get channel))
+                     (else (async-channel-try-get channel))))))
+      dispatch))
 )
 
 

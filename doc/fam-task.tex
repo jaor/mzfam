@@ -195,10 +195,10 @@ and blocking. In polling mode (the default) the thread sleeps for a
 while, checks for new events, invokes the needed callback procedures,
 processes requests for new, resumed or suspended paths and goes back
 to sleep. The sleep period can be provided as an optional argument to
-\scm{fam-task-create}. Its default value is \scm{0.01} (i.e., ten
-milliseconds). Thus, if you want your FAM task to perfom its duties
-(approximately) every half second, just create it with
-\scm{(fam-task-create 0.5)}.
+\scm{fam-task-create}. Its default value (given by the parameter
+\scm{fam-task-default-period}) is \scm{0.1} (i.e., ten milliseconds).
+Thus, if you want your FAM task to perfom its duties (approximately)
+every half second, just create it with \scm{(fam-task-create 0.5)}.
 
 When the FAM/Gamin daemon is available, FAM tasks can operate in
 blocking mode: they sleep as long as there're no pending events. You
