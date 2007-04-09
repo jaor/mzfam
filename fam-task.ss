@@ -98,7 +98,11 @@
         ((add)
          (when (fam-monitor-path fc (cadr msg))
            (hash-table-put! fspecs (cadr msg) (caddr msg))))
-        ((remove) (hash-table-remove! fspecs (cdr msg)))
+        ((remove)
+         (let ((path (hash-table-get fspecs (cdr msg) #f)))
+           (when path
+             (fam-cancel-path-monitoring fc path)
+             (hash-table-remove! fspecs path))))
         ((suspend) (fam-suspend-path-monitoring fc (cdr msg)))
         ((resume) (fam-resume-path-monitoring fc (cdr msg)))
         (else (display (format "Unexpected message: ~A~%" msg))))))

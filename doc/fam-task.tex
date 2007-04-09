@@ -297,11 +297,19 @@ lists all possible type symbols together with their meaning.
   \scm{fam-event-deleted} & File or directory deleted\\
   \multicolumn{2}{c}{\textit{Events reported only by FAM/Gamin}}\\\hline
   \scm{fam-event-moved} & File or directory moved \\
-  \scm{fam-event-acknowledge} & ? \\
   \scm{fam-event-exec-start} & Monitored program started execution\\
   \scm{fam-event-exec-stop} & Monitored program ended execution
+  \scm{fam-event-acknowledge} & Generated right after a cancellation
+  request is satisfied \\
 \end{tabular}
 
+I think all events are self-explanatory, with maybe the exception of
+'found' and 'eol'. When you request that a file be monitored, \MzFam\
+generates a \scm{fam-event-found} event for that file (if it exists).
+When the request is that a directory be monitored, \MzFam\ generates a
+\scm{fam-event-found} event for that directory (if it exists) and
+every file contained in that directory. After generating all 'found'
+events for the directory, a single \scm{fam-event-eol} is issued.
 
 %%% Local Variables:
 %%% mode: latex
