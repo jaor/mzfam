@@ -2,6 +2,84 @@
 \chapter{Low-level interface}
 \label{cha:low-level-interface}
 
+\section{Basics}
+\label{sec:basics}
+
+Although \scm{fam-task} does its very best to offer you an appealing
+interface, chances are some of you will find it unsuitable or simply
+dislike it. Besides telling me what you'd like to see in
+\scm{fam-task}, you can use the low-level monitoring API described in
+this chapter as an alternative. This API, defined as a set of generic
+procedures exported by the \scm{fam-base}, is a more or less direct
+translation of the C interface provided by \texttt{libfam}, and is
+implemented by the \scm{fam} module using PLT's FFI and by the
+\scm{fam-mz} module using pure Scheme. Each of the latter modules
+provides a constructor (\scm{make-fam} and \scm{make-mz-fam}) that
+returns a FAM connection object to be used as the first argument of
+every generic procedure.
+
+So, the general idea is that you pick an underlying implementation and
+require it together with \scm{fam-base}, and happily proceed to use
+it:
+\scm{
+(require "fam-base.ss" (planet "jao" "mzfam.plt" 1 0))
+
+(require "fam.ss" (planet "jao" "mzfam.plt" 1 0)) ;; or "fam-mz.ss"
+
+(define fc (make-fam)) ;; or (make-mz-fam)
+;; ... use fc via fam-base's generic functions ...
+}
+
+In addition, \scm{fam-base} exports all bindings in Swindle, so that
+your implementation can take advantage of this fine CLOS clone, if you
+feel like that. That's, by the way, the reason I keep calling the
+procedures exported by \scm{fam-base} \textit{generic}: they're
+actually implemented as generic functions. FAM events are instances of
+a Swindle class, \scm{<fam-event>}, which is also exported for your
+convenience.
+
+The next section gives you all the details you need to know in order
+to use \scm{fam-base}'s interface. Note that you can also look at this
+interface \textit{from below}, that is, as a provider of a new native
+implementation of FAM primitives (Windows anyone?). To wear this hat,
+you'll have to create you own FAM connection type and provide a
+constructor and concrete method implementation for the generics below.
+In exchange, you'll get FAM tasks based on your new implementation for
+free.
+
+\section{Generic low-level interface}
+\label{sec:generic-low-level}
+
+As stated in the previous section, all procedures below take as first
+argument a FAM connection object created with either \scm{make-fam}
+(from \scm{fam}) or \scm{make-mz-fam} (from \scm{fam-mz}).
+
+\begin{itemize}
+\item \scm{(fam-monitor-path fc path)} adds \scm{path} (a string) to
+  the set of paths monitored by \scm{fc}.
+\item \scm{(fam-monitored-paths fc)} returns the list of (absolute)
+  paths currently monitored by \scm{fc}.
+\item \scm{(fam-suspend-path-monitoring fc
+    path)}/\scm{fam-resume-path-monitoring fc path} suspends (resumes)
+  monitoring of the given \scm{path}. Events occurring during
+  suspension are remembered.
+\item \scm{(fam-cancel-path-monitoring fc path)} removes \scm{path}
+  from the list of monitored paths.
+\item \scm{(fam-any-event? fc)} tests whether there are pending events.
+\item \scm{(fam-next-event fc [wait])} grabs the next available event
+  (an instance of \scm{<fam-event>}). If the optional parameter
+  \scm{wait} is \scm{#t}, the call blocks until an event is available
+  (the default is a non-blocking call).
+\item \scm{(fam-pending-events fc)} returns a list of all available
+  events. This procedure is always non-blocking.
+\end{itemize}
+
+In addition, \scm{fam-base} exports the FAM event selectors and the
+auxiliar procedure \scm{fam-event-type->string} described at the end
+of section~\ref{cha:scmf-task-refer}. These procedures are actually
+implemented by \scm{fam-base}, unlike the generic functions above.
+
+
 %%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "mzfam"
