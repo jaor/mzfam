@@ -8,6 +8,9 @@ exec mzscheme -r "$0" "$@"
          (lib "file.ss")
          (lib "util.ss" "planet"))
 
+(define major-version 1)
+(define minor-version 0)
+
 (define doc-dir "doc/")
 
 (define doc-files
@@ -18,6 +21,7 @@ exec mzscheme -r "$0" "$@"
 (define make-docs
   (lambda ()
     (parameterize ((current-directory "doc"))
+      (tex2page "mzfam")
       (tex2page "mzfam")
       (copy-file "mzfam.png" "html/mzfam.png"))))
 
