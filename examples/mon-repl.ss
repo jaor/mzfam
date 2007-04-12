@@ -5,7 +5,7 @@ exec mzscheme -r "$0" "$@"
 
 ;;; Code: -*- scheme -*-
 
-(require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 0))
+(require (planet "fam-task.ss" ("jao" "mzfam.plt" 1 1))
          (lib "cmdline.ss"))
 
 (define recursive #f)
