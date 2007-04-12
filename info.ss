@@ -2,7 +2,8 @@
 (module info (lib "infotab.ss" "setup")
   (define name "mzfam")
   (define blurb
-    '("A file alteration monitor using either FAM/Gamin or a native implementation."))
+    '("A file alteration monitor"
+      "(using either FAM/Gamin or a pure scheme implementation)"))
   (define primary-file "fam-task.ss")
   (define doc.txt "html/mzfam.html")
   (define categories '(io))
