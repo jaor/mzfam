@@ -43,7 +43,7 @@
 
            fam-use-native?)
 
-  (require "fam-utils.ss"
+  (require "file-utils.ss"
            "fam.ss"
            "fam-mz.ss"
            (lib "async-channel.ss")

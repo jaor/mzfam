@@ -1,4 +1,4 @@
-;; fam-utils.ss -- Misc utilities
+;; file-utils.ss -- Misc utilities
 
 ;; Copyright (C) 2007 by Jose Antonio Ortega Ruiz
 
@@ -22,7 +22,7 @@
 
 ;;; Code:
 
-(module fam-utils mzscheme
+(module file-utils mzscheme
   (provide is-file-path?
            last-modification-time
            absolute-pathname)
@@ -46,4 +46,4 @@
 
 )
 
-;;; fam-utils.ss ends here
+;;; file-utils.ss ends here

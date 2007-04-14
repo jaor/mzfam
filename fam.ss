@@ -27,7 +27,7 @@
   (provide fam-available?
            make-fam)
 
-  (require "fam-utils.ss"
+  (require "file-utils.ss"
            (lib "etc.ss")
            (lib "file.ss"))
   (require (lib "foreign.ss")) (unsafe!)

@@ -26,7 +26,7 @@
 
   (provide make-mz-fam)
 
-  (require "fam-utils.ss"
+  (require "file-utils.ss"
            "fam-base.ss"
            (lib "file.ss"))
 

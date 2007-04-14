@@ -34,7 +34,7 @@ exec mzscheme -r "$0" "$@"
 
 (define scm-files
   (map (lambda (f) (string-append f ".ss"))
-       '("fam" "fam-mz" "fam-utils" "fam-base" "fam-task" "info")))
+       '("fam" "fam-mz" "file-utils" "fam-base" "fam-task" "info")))
 
 (define dist-dir "dist/")
 (define make-dist
