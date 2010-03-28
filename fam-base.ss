@@ -1,6 +1,6 @@
 ;; fam-base.ss -- FAM generics and basic event objects
 
-;; Copyright (C) 2007 by Jose Antonio Ortega Ruiz
+;; Copyright (C) 2007, 2010 by Jose Antonio Ortega Ruiz
 
 ;; Author: Jose Antonio Ortega Ruiz <jao@gnu.org>
 ;; Start date: Sat Mar 24, 2007 23:41
@@ -22,10 +22,12 @@
 
 ;;; Code:
 
-(module fam-base (lib "swindle.ss" "swindle")
+(module fam-base swindle
 
-  (provide (all-from (lib "swindle.ss" "swindle")))
-  (require (lib "async-channel.ss"))
+  (provide (all-from swindle)
+           (all-from swindle/misc))
+
+  (require (lib "async-channel.ss") swindle/misc)
 
   (provide fam-monitor-path
            fam-monitored-paths

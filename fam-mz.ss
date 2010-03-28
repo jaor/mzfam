@@ -1,6 +1,6 @@
 ;; fam-mz.ss -- Pure-scheme fam substitution
 
-;; Copyright (C) 2007 by Jose Antonio Ortega Ruiz
+;; Copyright (C) 2007, 2010 by Jose Antonio Ortega Ruiz
 
 ;; Author: Jose Antonio Ortega Ruiz <jao@gnu.org>
 ;; Start date: Sat Mar 24, 2007 21:10
@@ -125,8 +125,8 @@
     (if (monitored-file-enabled? mf)
         (begin
           (%refresh-children! mf)
-          (let ((nevents (mappend! %pending-events
-                                   (monitored-folder-children mf)))
+          (let ((nevents (mappend %pending-events
+                                  (monitored-folder-children mf)))
                 (mfolder (monitored-file-path mf)))
             (for-each (lambda (event)
                         (slot-set! event 'monitored-path mfolder))
@@ -142,9 +142,9 @@
         '()))
 
   (defmethod (%pending-events (fc <mz-fam>))
-    (sort! (mappend! %pending-events (mz-fam-files fc))
-           (lambda (e1 e2) (< (fam-event-timestamp e1)
-                         (fam-event-timestamp e2)))))
+    (sort (mappend %pending-events (mz-fam-files fc))
+          (lambda (e1 e2) (< (fam-event-timestamp e1)
+                             (fam-event-timestamp e2)))))
 
   (defmethod (%find-path (mt <monitored-file>) (path <string>))
     (and (string=? (monitored-file-path mt) path)
@@ -152,7 +152,8 @@
 
   (defmethod (%find-path (mt <monitored-folder>) (path <string>))
     (or (call-next-method)
-        (some (lambda (ch) (%find-path ch path)) (monitored-folder-children mt))))
+        (some (lambda (ch) (%find-path ch path))
+              (monitored-folder-children mt))))
 
   (defmethod (%find-path (fc <mz-fam>) (path <string>))
     (some (lambda (mt) (%find-path mt path)) (mz-fam-files fc)))

@@ -9,8 +9,8 @@ exec mzscheme -r "$0" "$@"
          (lib "process.ss")
          (lib "util.ss" "planet"))
 
-(define major-version 1)
-(define minor-version 2)
+(define major-version 2)
+(define minor-version 0)
 
 (define doc-dir "doc/")
 (define html-dir "html/")
@@ -22,7 +22,7 @@ exec mzscheme -r "$0" "$@"
              '("mzfam" "intro" "fam-task" "fam-task-ref" "fam"))))
 
 (define (dd dir)
-  (if (directory-exists? dir) (delete-directory/files dir)))
+  (when (directory-exists? dir) (delete-directory/files dir)))
 
 (define make-docs
   (lambda ()
@@ -58,7 +58,7 @@ exec mzscheme -r "$0" "$@"
   (lambda ()
     (dd dist-dir)
     (dd html-dir)
-    (if (file-exists? planet-file) (delete-file planet-file))))
+    (when (file-exists? planet-file) (delete-file planet-file))))
 
 (define (assoc-plt)
   (add-hard-link "jao" planet-file major-version minor-version
