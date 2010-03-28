@@ -6,8 +6,7 @@
   (define doc.txt "html/mzfam.html")
   (define html-docs '("html"))
   (define categories '(io))
-  (define version "1.0")
+  (define version "2.0")
   (define release-notes
-    '("Examples added and license changed to LGPL; "
-      "HTML documentation accessible as a HelpDesk manual."))
-  (define required-core-version "369.8"))
+    '("Update to PLT 4.2. No interface changes."))
+  (define required-core-version "4.2"))
