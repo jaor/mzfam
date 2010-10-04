@@ -179,8 +179,8 @@
   (defmethod (fam-cancel-path-monitoring (fc <mz-fam>) path)
     (set-mz-fam-files! fc (remove path
                                   (mz-fam-files fc)
-                                  (lambda (mt)
-                                    (string=? (monitored-file-path mt) path)))))
+                                  (lambda (p mt)
+                                    (string=? p (monitored-file-path mt))))))
 
   (defmethod (fam-any-event? (fc <mz-fam>))
     (when (null? (mz-fam-events fc))
