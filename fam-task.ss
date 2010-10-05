@@ -1,6 +1,6 @@
 ;; fam-task.ss -- Utilities on top of fam
 
-;; Copyright (C) 2007 by Jose Antonio Ortega Ruiz
+;; Copyright (C) 2007, 2010 by Jose Antonio Ortega Ruiz
 
 ;; Author: Jose Antonio Ortega Ruiz <jao@gnu.org>
 ;; Start date: Fri Mar 23, 2007 23:44
@@ -105,8 +105,8 @@
          (when (fam-monitor-path fc (cadr msg))
            (hash-table-put! fspecs (cadr msg) (caddr msg))))
         ((remove)
-         (let ((path (hash-table-get fspecs (cdr msg) #f)))
-           (when path
+         (let ((path (cdr msg)))
+           (when (hash-table-get fspecs path #f)
              (fam-cancel-path-monitoring fc path)
              (hash-table-remove! fspecs path))))
         ((suspend) (fam-suspend-path-monitoring fc (cdr msg)))
