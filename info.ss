@@ -6,7 +6,6 @@
   (define doc.txt "html/mzfam.html")
   (define html-docs '("html"))
   (define categories '(io))
-  (define version "2.0")
-  (define release-notes
-    '("Update to PLT 4.2. No interface changes."))
+  (define version "2.1")
+  (define release-notes '("Minor bug fixes. Recommended for all 2.0 users."))
   (define required-core-version "4.2"))

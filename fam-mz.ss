@@ -30,7 +30,8 @@
            "fam-base.ss"
            (lib "file.ss"))
 
-  (defclass <mz-fam> () (files :initvalue '()) (events :initvalue '()) :auto #t)
+  (defclass <mz-fam> ()
+    (files :initvalue '()) (events :initvalue '()) :auto #t)
 
   (defclass <monitored-file> ()
     path

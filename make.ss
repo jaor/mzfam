@@ -10,7 +10,7 @@ exec mzscheme -r "$0" "$@"
          (lib "util.ss" "planet"))
 
 (define major-version 2)
-(define minor-version 0)
+(define minor-version 1)
 
 (define doc-dir "doc/")
 (define html-dir "html/")
